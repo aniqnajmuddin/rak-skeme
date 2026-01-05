@@ -53,10 +53,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isDarkMode, toggleTh
   return (
     <div className={`min-h-screen flex items-center justify-center p-6 relative overflow-hidden transition-colors duration-700 ${isDarkMode ? 'bg-[#020617]' : 'bg-[#F8FAFC]'}`}>
       
-      {/* Efek Glow Belakang - Lebih Subtle & Pro */}
+      {/* Efek Glow Belakang */}
       <div className="absolute inset-0 z-0 overflow-hidden">
-        <div className={`absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[150px] opacity-20 ${isDarkMode ? 'bg-blue-600' : 'bg-blue-200'}`} />
-        <div className={`absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full blur-[150px] opacity-20 ${isDarkMode ? 'bg-amber-600' : 'bg-amber-200'}`} />
+        <div className={`glow-pulse absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[150px] opacity-20 ${isDarkMode ? 'bg-blue-600' : 'bg-blue-200'}`} />
+        <div className={`glow-pulse absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full blur-[150px] opacity-20 delay-1000 ${isDarkMode ? 'bg-amber-600' : 'bg-amber-200'}`} />
       </div>
 
       {/* Theme Toggle */}
@@ -66,7 +66,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isDarkMode, toggleTh
         </button>
       </div>
 
-      <div className="relative z-10 w-full max-w-[420px] animate-in fade-in slide-in-from-bottom-4 duration-1000">
+      <div className="relative z-10 w-full max-w-[420px] animate-float">
         
         {/* Info Sekolah & Unit */}
         <div className="text-center mb-10">
@@ -89,7 +89,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isDarkMode, toggleTh
           </h1>
         </div>
 
-        {/* Login Card - Glassmorphism */}
+        {/* Login Card */}
         <div className={`backdrop-blur-3xl border rounded-[2.5rem] p-8 md:p-10 shadow-2xl ${isDarkMode ? 'bg-slate-900/40 border-white/5 shadow-black/50' : 'bg-white/70 border-slate-200 shadow-slate-200'}`}>
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-4">
@@ -129,10 +129,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isDarkMode, toggleTh
           </form>
         </div>
         
-        {/* Footer Creative */}
+        {/* Footer */}
         <div className="mt-12 text-center space-y-4">
           <div className="flex flex-col items-center">
-            {/* Gaya Tulisan Tangan Kreatif */}
             <p className={`text-3xl font-['Caveat',_cursive] tracking-tight ${isDarkMode ? 'text-slate-200' : 'text-slate-600'}`}>
               Senyum Sokmo
             </p>
