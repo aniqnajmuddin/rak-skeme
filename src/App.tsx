@@ -20,7 +20,6 @@ const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isScrolling, setIsScrolling] = useState(false);
 
-  // Efek Smart Scroll untuk Menu
   useEffect(() => {
     let timeout: any;
     const handleScroll = () => {
@@ -40,14 +39,28 @@ const App: React.FC = () => {
   const navigate = (screen: string) => {
     setCurrentScreen(screen);
     setIsMenuOpen(false);
-    window.scrollTo(0, 0); // Reset skrol ke atas
+    window.scrollTo(0, 0);
   };
 
   if (!isLoggedIn) {
     return <LoginScreen onLogin={handleLoginSuccess} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} />;
   }
 
-  // Komponen pembungkus skrin dengan Animasi
+  // LOGIK PENYELARASAN HEADER: Ambil tajuk mengikut skrin
+  const getPageTitle = () => {
+    switch (currentScreen) {
+      case 'HOME': return 'RAK SKeMe';
+      case 'RECORD': return 'REKOD AKTIVITI';
+      case 'REPORT': return 'PENJANA OPR';
+      case 'ANALYSIS': return 'ANALISIS DATA';
+      case 'SPORTS': return 'SUKAN & PERMAINAN';
+      case 'TAKWIM': return 'TAKWIM TAHUNAN';
+      case 'SIJIL': return 'SIJIL DIGITAL';
+      case 'ADMIN': return 'ADMIN PANEL';
+      default: return 'RAK SKeMe';
+    }
+  };
+
   const ScreenWrapper = ({ children, id }: { children: React.ReactNode, id: string }) => (
     <div key={id} className="page-transition h-full w-full overflow-y-auto no-scrollbar">
       {children}
@@ -57,25 +70,43 @@ const App: React.FC = () => {
   return (
     <div className={`h-screen w-full relative overflow-hidden flex flex-col font-['Manrope'] transition-colors duration-500 ${isDarkMode ? 'bg-[#0F172A] text-white' : 'bg-slate-50 text-slate-900'}`}>
       
-      {/* HEADER: Muncul ikut keadaan */}
-      {currentScreen === 'HOME' && (
-        <header className="px-6 py-5 flex items-center justify-between animate-in fade-in slide-in-from-top-4 duration-700">
+      {/* GLOBAL HEADER: Selaras untuk semua skrin */}
+      <header className="px-6 py-5 flex items-center justify-between z-[100] no-print shrink-0">
           <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20">
-                  <span className="font-['Teko'] text-3xl font-bold text-white pt-1 tracking-tight">RAK</span>
+              {/* Logo Branding - Konsisten */}
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20 shrink-0 transition-transform active:scale-90" onClick={() => navigate('HOME')}>
+                  <span className="font-['Teko'] text-2xl md:text-3xl font-bold text-white pt-1 tracking-tight">RAK</span>
               </div>
-              <div>
-                  <h1 className="text-2xl font-['Teko'] font-bold leading-none tracking-wide uppercase">RAK SKeMe</h1>
-                  <p className="text-[10px] font-bold tracking-widest uppercase opacity-50 mt-1">SK Menerong</p>
+              
+              <div className="flex flex-col">
+                  {/* Dynamic Page Title */}
+                  <h1 className="text-xl md:text-2xl font-['Teko'] font-bold leading-none tracking-wide uppercase transition-all duration-500">
+                    {getPageTitle()}
+                  </h1>
+                  <p className="text-[9px] md:text-[10px] font-bold tracking-[0.2em] uppercase opacity-40 mt-1 truncate">
+                    SK Menerong Terengganu
+                  </p>
               </div>
           </div>
-          <button onClick={() => setIsDarkMode(!isDarkMode)} className={`p-3 rounded-full transition-all ${isDarkMode ? 'bg-slate-800 text-yellow-400' : 'bg-white text-slate-600 shadow-sm border border-slate-200'}`}>
-                {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
-      </header>
-      )}
 
-      {/* RENDER SKRIN DENGAN ANIMASI TRANSISI */}
+          <div className="flex items-center gap-2 md:gap-3">
+            {/* Butang Dark Mode - Konsisten */}
+            <button 
+              onClick={() => setIsDarkMode(!isDarkMode)} 
+              className={`p-2.5 md:p-3 rounded-full transition-all active:scale-90 ${isDarkMode ? 'bg-slate-800 text-yellow-400' : 'bg-white text-slate-600 shadow-sm border border-slate-200'}`}
+            >
+              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+
+            {/* User Indicator - Konsisten */}
+            <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'bg-slate-800/50 border-white/10' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+              {userRole}
+            </div>
+          </div>
+      </header>
+
+      {/* RENDER SKRIN */}
       <main className="flex-1 relative z-10 h-full overflow-hidden">
         {currentScreen === 'HOME' && <ScreenWrapper id="home"><DashboardHome onNavigate={navigate} isDarkMode={isDarkMode} /></ScreenWrapper>}
         {currentScreen === 'RECORD' && <ScreenWrapper id="record"><ActivityRecordScreen onBack={() => navigate('HOME')} /></ScreenWrapper>}
@@ -87,10 +118,9 @@ const App: React.FC = () => {
         {currentScreen === 'ADMIN' && <ScreenWrapper id="admin"><AdminPanelScreen onBack={() => navigate('HOME')} /></ScreenWrapper>}
       </main>
 
-      {/* --- CANGGIH ACTION DOCK (MENU) --- */}
+      {/* ACTION DOCK (MENU) */}
       <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[2000] transition-all duration-700 no-print 
         ${isScrolling && !isMenuOpen ? 'opacity-20 scale-75 blur-sm' : 'opacity-100 scale-100'}`}>
-        
         <div className={`glass-panel transition-all duration-500 ${isMenuOpen ? 'bg-slate-900/90 p-6 rounded-[2.5rem] shadow-2xl border border-white/10' : 'bg-transparent'}`}>
           {isMenuOpen ? (
             <div className="flex flex-col gap-6">
@@ -105,12 +135,12 @@ const App: React.FC = () => {
                 {userRole === 'ADMIN' && <MenuIcon icon={Settings} label="Admin" active={currentScreen === 'ADMIN'} onClick={() => navigate('ADMIN')} color="text-slate-400" />}
               </div>
               <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                <button onClick={() => setIsLoggedIn(false)} className="text-[10px] font-black uppercase tracking-widest text-rose-500 hover:text-white px-4 py-2 rounded-lg transition-colors">Log Out</button>
+                <button onClick={() => {setIsLoggedIn(false); setUserRole(null);}} className="text-[10px] font-black uppercase tracking-widest text-rose-500 hover:text-white px-4 py-2 rounded-lg transition-colors">Log Out</button>
                 <button onClick={() => setIsMenuOpen(false)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white"><X size={20} /></button>
               </div>
             </div>
           ) : (
-            <button onClick={() => setIsMenuOpen(true)} className={`group flex items-center gap-3 border px-2 py-2 rounded-full shadow-2xl transition-all active:scale-90 ${isDarkMode ? 'bg-slate-900 border-white/10' : 'bg-white border-slate-200'}`}>
+            <button onClick={() => setIsMenuOpen(true)} className={`group flex items-center gap-3 border px-2 py-2 rounded-full shadow-2xl transition-all active:scale-90 ${isDarkMode ? 'bg-slate-900 border-white/10' : 'bg-white border-slate-200 shadow-lg'}`}>
               <div className="w-10 h-10 bg-gradient-to-tr from-amber-500 to-orange-400 rounded-full flex items-center justify-center text-white shadow-lg shadow-amber-500/30">
                 <LayoutGrid size={20} />
               </div>
@@ -123,6 +153,7 @@ const App: React.FC = () => {
   );
 };
 
+// Komponen Kecil Menu
 const MenuIcon = ({ icon: Icon, label, active, onClick, color }: any) => (
   <button onClick={onClick} className="flex flex-col items-center gap-1 group">
     <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${active ? 'bg-white/10 scale-110 shadow-lg' : 'hover:bg-white/5 opacity-60'}`}>
@@ -132,24 +163,29 @@ const MenuIcon = ({ icon: Icon, label, active, onClick, color }: any) => (
   </button>
 );
 
+// Komponen Dashboard
 const DashboardHome = ({ onNavigate, isDarkMode }: any) => {
-  const cardClass = isDarkMode ? 'bg-slate-800/40 border-white/5' : 'bg-white border-slate-200 shadow-sm';
+  const cardClass = isDarkMode ? 'bg-slate-800/40 border-white/5 hover:bg-slate-800/60' : 'bg-white border-slate-200 shadow-sm hover:shadow-md';
   return (
     <div className="w-full max-w-4xl mx-auto p-6 pb-32">
-        <div className="mb-12 mt-4">
-            <h2 className="text-5xl md:text-7xl font-['Teko'] font-medium leading-none tracking-tight">WIRA <span className="text-amber-500">KOKU</span></h2>
-            <p className="text-sm font-bold uppercase tracking-[0.3em] opacity-40 mt-2">SK Menerong Dashboard</p>
+        <div className="mb-10 md:mb-14 mt-4 text-center md:text-left">
+            <h2 className="text-6xl md:text-8xl font-['Teko'] font-medium leading-[0.85] tracking-tight">WIRA <br className="md:hidden" /><span className="text-amber-500">KOKURIKULUM</span></h2>
+            <p className="text-[10px] md:text-xs font-bold uppercase tracking-[0.4em] opacity-30 mt-4 md:mt-2">Sistem Pengurusan Aktiviti Sekolah</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div onClick={() => onNavigate('RECORD')} className={`p-8 rounded-[2.5rem] border cursor-pointer group transition-all hover:-translate-y-1 ${cardClass}`}>
-                <Zap size={32} className="text-amber-500 mb-4 group-hover:scale-110 transition-transform" />
-                <h3 className="text-2xl font-['Teko'] font-bold uppercase">Rekod Baru</h3>
-                <p className="text-xs opacity-50 mt-1 uppercase font-bold">Input aktiviti harian</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+            <div onClick={() => onNavigate('RECORD')} className={`p-8 md:p-10 rounded-[2.5rem] border cursor-pointer group transition-all duration-500 hover:-translate-y-2 ${cardClass}`}>
+                <div className="w-14 h-14 bg-amber-500/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                  <Zap size={32} className="text-amber-500" />
+                </div>
+                <h3 className="text-3xl font-['Teko'] font-bold uppercase tracking-wide">Rekod Aktiviti</h3>
+                <p className="text-[10px] opacity-50 mt-1 uppercase font-black tracking-widest">Input Data Penyertaan Murid</p>
             </div>
-            <div onClick={() => onNavigate('REPORT')} className={`p-8 rounded-[2.5rem] border cursor-pointer group transition-all hover:-translate-y-1 ${cardClass}`}>
-                <FileText size={32} className="text-emerald-500 mb-4 group-hover:scale-110 transition-transform" />
-                <h3 className="text-2xl font-['Teko'] font-bold uppercase">Penjana OPR</h3>
-                <p className="text-xs opacity-50 mt-1 uppercase font-bold">Jana laporan bergambar</p>
+            <div onClick={() => onNavigate('REPORT')} className={`p-8 md:p-10 rounded-[2.5rem] border cursor-pointer group transition-all duration-500 hover:-translate-y-2 ${cardClass}`}>
+                <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                  <FileText size={32} className="text-emerald-500" />
+                </div>
+                <h3 className="text-3xl font-['Teko'] font-bold uppercase tracking-wide">Penjana OPR</h3>
+                <p className="text-[10px] opacity-50 mt-1 uppercase font-black tracking-widest">Laporan Bergambar (One Page Report)</p>
             </div>
         </div>
     </div>
