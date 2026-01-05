@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useContext } from 'react';
 import { 
   ArrowLeft, Upload, Image as ImageIcon, Trash2, RefreshCw, Layers, 
   Lock, Unlock, Download, Palette, Layout, FileText, Grid, Type, Minus, Plus, 
@@ -6,6 +6,7 @@ import {
   Hexagon, Columns, CircleDot, Sidebar as SidebarIcon, Table, ListOrdered, 
   Box, Target, TrendingUp, Camera, Zap, AlignLeft, Info
 } from 'lucide-react';
+import { NotifyContext } from '../App'; // Panggil suis notifikasi
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -57,6 +58,9 @@ type TemplateType =
   'HONEYCOMB_HEX' | 'SIDEBAR_INFO' | 'CIRCLE_LENS';
 
 const ReportGeneratorScreen: React.FC<{onBack: () => void, isDarkMode: boolean}> = ({ onBack, isDarkMode }) => {
+  // --- AKTIFKAN NOTIFY ---
+  const notifyCtx = useContext(NotifyContext);
+
   const [title, setTitle] = useState('LAPORAN AKTIVITI KOKURIKULUM');
   const [date, setDate] = useState('12 JANUARI 2026');
   const [content, setContent] = useState({
@@ -78,7 +82,7 @@ const ReportGeneratorScreen: React.FC<{onBack: () => void, isDarkMode: boolean}>
   const [kpmLogo, setKpmLogo] = useState<string | null>(null);
 
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>('CARDS_UI');
-  const [themeColor, setThemeColor] = useState('#1e3a8a'); 
+  const [themeColor, setThemeColor] = useState('#f59e0b'); // Guna Amber-500 bohh
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
@@ -108,12 +112,17 @@ const ReportGeneratorScreen: React.FC<{onBack: () => void, isDarkMode: boolean}>
     if (e.target.files) {
       const newImages = Array.from(e.target.files).map(file => URL.createObjectURL(file));
       setImages(prev => [...prev, ...newImages].slice(0, 6)); 
+      notifyCtx?.notify(`${newImages.length} keping gambar berjaya dimuat naik.`, "success");
     }
   };
 
   const handleDownloadPDF = async () => {
     if (!printRef.current || isGenerating) return;
+    
+    // 1. Popup Loading Gempak
+    const loadId = notifyCtx?.notify("Enjin grafik sedang menjana laporan OPR...", "loading");
     setIsGenerating(true);
+
     try {
         const element = printRef.current;
         element.style.display = 'block'; 
@@ -122,8 +131,17 @@ const ReportGeneratorScreen: React.FC<{onBack: () => void, isDarkMode: boolean}>
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
         const pdf = new jsPDF('p', 'mm', 'a4');
         pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
-        pdf.save(`Laporan_RAK.pdf`);
-    } catch (err) { console.error(err); } finally { setIsGenerating(false); }
+        pdf.save(`LAPORAN_OPR_${title.replace(/\s+/g, '_')}.pdf`);
+
+        // 2. Berjaya
+        notifyCtx?.notify("Laporan berjaya dijana & dimuat turun!", "success");
+    } catch (err) { 
+        notifyCtx?.notify("Ralat semasa menjana dokumen. Sila cuba lagi.", "error");
+        console.error(err); 
+    } finally { 
+        setIsGenerating(false); 
+        if (loadId) notifyCtx?.removeNotify(loadId);
+    }
   };
 
   const StandardHeader = () => (
@@ -179,6 +197,7 @@ const ReportGeneratorScreen: React.FC<{onBack: () => void, isDarkMode: boolean}>
                     <div className="bg-white p-5 rounded-xl border flex flex-col shadow-sm">
                         <div className="grid grid-cols-2 gap-2 mb-4">
                             {images.slice(0,4).map((img, i) => <div key={i} className="aspect-square rounded-lg overflow-hidden border-2 border-white shadow-sm"><img src={img} className="w-full h-full object-cover"/></div>)}
+                            {images.length === 0 && [1,2,3,4].map(i => <div key={i} className="aspect-square bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center text-slate-300 text-[10px]">Gambar {i}</div>)}
                         </div>
                         <div className="space-y-2 mt-auto">
                             <div className="bg-emerald-50 p-2 rounded-lg border border-emerald-100">
@@ -199,12 +218,12 @@ const ReportGeneratorScreen: React.FC<{onBack: () => void, isDarkMode: boolean}>
     <div className={`h-screen flex flex-col ${isDarkMode ? 'bg-[#0F172A]' : 'bg-slate-50'} overflow-hidden relative`}>
       <nav className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 shrink-0 z-[1001] no-print">
         <div className="flex items-center gap-4">
-             <button onClick={onBack} className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-white hover:bg-slate-700 transition-all"><ArrowLeft size={20}/></button>
+             <button onClick={onBack} className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-white hover:bg-slate-700 transition-all active:scale-90"><ArrowLeft size={20}/></button>
              <h1 className="text-white font-['Teko'] text-2xl uppercase tracking-wider">RAK <span className="text-amber-500">DESIGNER</span></h1>
         </div>
         <div className="flex items-center gap-2">
-             <button onClick={() => setIsLocked(!isLocked)} className={`px-4 py-2 rounded-lg font-bold uppercase text-xs flex items-center gap-2 transition-all ${isLocked ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
-                {isLocked ? <Lock size={14}/> : <Unlock size={14}/>} <span className="hidden sm:inline">{isLocked ? 'View' : 'Edit'}</span>
+             <button onClick={() => { setIsLocked(!isLocked); notifyCtx?.notify(isLocked ? "Mod Suntingan Aktif" : "Mod Pratonton Aktif", "info"); }} className={`px-4 py-2 rounded-lg font-bold uppercase text-xs flex items-center gap-2 transition-all ${isLocked ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                {isLocked ? <Lock size={14}/> : <Unlock size={14}/>} <span className="hidden sm:inline">{isLocked ? 'Lock' : 'Unlock'}</span>
              </button>
              <button onClick={handleDownloadPDF} disabled={isGenerating} className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold uppercase text-xs flex items-center gap-2 shadow-lg active:scale-95 transition-all">
                 {isGenerating ? <RefreshCw className="animate-spin" size={14}/> : <Download size={14}/>} <span className="hidden sm:inline">PDF</span>
@@ -218,14 +237,14 @@ const ReportGeneratorScreen: React.FC<{onBack: () => void, isDarkMode: boolean}>
             <div className="space-y-6 pb-24">
                 <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
                     <p className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2 mb-2"><Info size={14}/> Tip</p>
-                    <p className="text-[9px] text-slate-400 leading-relaxed">Klik pada teks dalam laporan untuk selenggara saiz font individu.</p>
+                    <p className="text-[9px] text-slate-400 leading-relaxed">Gunakan template yang sesuai untuk impak visual yang lebih profesional.</p>
                 </div>
 
                 <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2"><Layers size={14}/> Template</label>
-                    <div className="grid grid-cols-1 gap-1.5 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
-                        {['CARDS_UI', 'BENTO_GRID', 'VISUAL_MAGAZINE', 'OFFICIAL_GOVT', 'CORPORATE_PRO', 'TIMELINE_FLOW', 'MINDMAP_NET', 'HONEYCOMB_HEX', 'SPLIT_SCREEN', 'CIRCLE_LENS', 'SIDEBAR_INFO', 'COMPACT_GRID', 'EXECUTIVE_REPORT', 'MINUTES_STYLE', 'TABLE_DATA'].map((id) => (
-                            <button key={id} onClick={() => setSelectedTemplate(id as any)} className={`w-full p-2.5 rounded-xl border text-[9px] font-bold uppercase text-left transition-all ${selectedTemplate === id ? 'bg-blue-600 border-blue-500 text-white shadow-lg' : 'bg-slate-800/40 border-slate-700 text-slate-400 hover:bg-slate-800'}`}>
+                    <div className="grid grid-cols-1 gap-1.5 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                        {['CARDS_UI', 'BENTO_GRID', 'VISUAL_MAGAZINE', 'OFFICIAL_GOVT', 'CORPORATE_PRO', 'TIMELINE_FLOW'].map((id) => (
+                            <button key={id} onClick={() => { setSelectedTemplate(id as any); notifyCtx?.notify(`Template ${id} dipasang.`, "info"); }} className={`w-full p-2.5 rounded-xl border text-[9px] font-bold uppercase text-left transition-all ${selectedTemplate === id ? 'bg-amber-500 border-amber-500 text-slate-900' : 'bg-slate-800/40 border-slate-700 text-slate-400 hover:bg-slate-800'}`}>
                                 {id.replace('_', ' ')}
                             </button>
                         ))}
@@ -238,7 +257,7 @@ const ReportGeneratorScreen: React.FC<{onBack: () => void, isDarkMode: boolean}>
                         {images.map((img, i) => (
                             <div key={i} className="aspect-square relative group rounded-lg overflow-hidden border border-slate-700 shadow-md">
                                 <img src={img} className="w-full h-full object-cover" alt="preview"/>
-                                <button onClick={() => setImages(images.filter((_, idx) => idx !== i))} className="absolute inset-0 bg-red-600/80 hidden group-hover:flex items-center justify-center text-white transition-all"><Trash2 size={16}/></button>
+                                <button onClick={() => { setImages(images.filter((_, idx) => idx !== i)); notifyCtx?.notify("Gambar dibuang.", "info"); }} className="absolute inset-0 bg-red-600/80 hidden group-hover:flex items-center justify-center text-white transition-all"><Trash2 size={16}/></button>
                             </div>
                         ))}
                         {images.length < 6 && (
@@ -248,6 +267,17 @@ const ReportGeneratorScreen: React.FC<{onBack: () => void, isDarkMode: boolean}>
                         )}
                     </div>
                     <input type="file" ref={fileInputRef} multiple className="hidden" accept="image/*" onChange={handleImageUpload}/>
+                </div>
+
+                {/* Logo Section */}
+                <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2"><Palette size={14}/> Logos</label>
+                    <div className="grid grid-cols-2 gap-2">
+                        <button onClick={() => document.getElementById('logo-s')?.click()} className="p-3 bg-slate-800 border border-slate-700 rounded-xl text-[9px] font-bold text-slate-400 hover:text-white">Logo Sekolah</button>
+                        <button onClick={() => document.getElementById('logo-k')?.click()} className="p-3 bg-slate-800 border border-slate-700 rounded-xl text-[9px] font-bold text-slate-400 hover:text-white">Logo KPM</button>
+                    </div>
+                    <input id="logo-s" type="file" className="hidden" onChange={e => e.target.files && setSchoolLogo(URL.createObjectURL(e.target.files[0]))}/>
+                    <input id="logo-k" type="file" className="hidden" onChange={e => e.target.files && setKpmLogo(URL.createObjectURL(e.target.files[0]))}/>
                 </div>
             </div>
         </aside>

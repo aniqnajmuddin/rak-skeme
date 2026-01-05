@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { studentDataService } from '../services/studentDataService';
+import { NotifyContext } from '../App'; // Import suis speaker
 import { ActivityRecordModel } from '../types';
 import { 
     Award, ArrowLeft, Layout, Upload, CheckCircle, RefreshCw, Download, 
-    Type, Palette, ShieldCheck, PenTool, Sparkles, Star, Crown, Minus, Plus, 
-    X, Eraser, MousePointer2
+    PenTool, Sparkles, Crown, Minus, Plus, Eraser, MousePointer2
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -32,6 +32,9 @@ const SmartText = ({ val, setVal, fontSize, setFontSize, className = "", style =
 };
 
 const CertificateScreen: React.FC<{onBack: () => void, isDarkMode?: boolean}> = ({ onBack, isDarkMode = true }) => {
+    // --- AKTIFKAN SPEAKER NOTIFIKASI ---
+    const notifyCtx = useContext(NotifyContext);
+
     const [activities, setActivities] = useState<ActivityRecordModel[]>([]);
     const [selectedActivity, setSelectedActivity] = useState<ActivityRecordModel | null>(null);
     const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
@@ -40,7 +43,7 @@ const CertificateScreen: React.FC<{onBack: () => void, isDarkMode?: boolean}> = 
     const [kpmLogo, setKpmLogo] = useState<string | null>(null);
     const [signatureImg, setSignatureImg] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [themeColor, setThemeColor] = useState('#f59e0b');
+    const [themeColor, setThemeColor] = useState('#f59e0b'); // Amber-500
 
     const [config, setConfig] = useState({
         mainTitle: 'SIJIL PENGHARGAAN',
@@ -54,7 +57,9 @@ const CertificateScreen: React.FC<{onBack: () => void, isDarkMode?: boolean}> = 
 
     const [fs, setFs] = useState({ title: 56, school: 28, name: 42, sub: 18, activity: 32, sign: 24 });
 
-    useEffect(() => { setActivities(studentDataService.activityRecords); }, []);
+    useEffect(() => { 
+        setActivities(studentDataService.activityRecords); 
+    }, []);
 
     const handleSelectActivity = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const act = activities.find(a => a.programName === e.target.value);
@@ -62,31 +67,48 @@ const CertificateScreen: React.FC<{onBack: () => void, isDarkMode?: boolean}> = 
         if (act) {
             setSelectedStudents(act.participants.map(p => p.ic));
             setConfig(prev => ({...prev, dateStr: new Date(act.date).toLocaleDateString('ms-MY', {day:'numeric', month:'long', year:'numeric'}).toUpperCase()}));
+            notifyCtx?.notify(`Aktiviti "${act.programName}" dipilih. ${act.participants.length} murid sedia untuk dijana.`, "info");
         }
     };
 
     const handleDownloadPDF = async () => {
         if (!selectedActivity || selectedStudents.length === 0) return alert("Sila pilih aktiviti!");
         setIsGenerating(true);
+        
+        // 1. Munculkan popup LOADING
+        const loadId = notifyCtx?.notify(`Sedang memproses ${selectedStudents.length} keping sijil... Sila tunggu.`, "loading");
+
         try {
             const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            
             for (let i = 0; i < selectedStudents.length; i++) {
                 const studentIc = selectedStudents[i];
                 const certElement = document.getElementById(`cert-${studentIc}`);
+                
                 if (certElement) {
                     const canvas = await html2canvas(certElement, { scale: 2, useCORS: true, logging: false });
                     if (i > 0) pdf.addPage();
                     pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 297, 210);
                 }
             }
+            
             pdf.save(`SIJIL_${selectedActivity.programName.replace(/ /g, '_')}.pdf`);
-        } catch (e) { console.error(e); } finally { setIsGenerating(false); }
+            
+            // 2. Munculkan popup BERJAYA
+            notifyCtx?.notify(`Tahniah! ${selectedStudents.length} keping sijil berjaya dijana dalam fail PDF.`, "success");
+
+        } catch (e) {
+            notifyCtx?.notify("Ralat teknikal semasa menjana PDF.", "error");
+            console.error(e);
+        } finally {
+            if (loadId) notifyCtx?.removeNotify(loadId); // Tutup loading
+            setIsGenerating(false);
+        }
     };
 
     const BaseTemplate = ({ name, ic, activity, achievement }: any) => {
         const primary = themeColor;
         
-        // --- CONTENT UI SHARED ---
         const SignatureArea = () => (
             <div className="relative flex flex-col items-center min-w-[200px]">
                 {signatureImg && (
@@ -155,7 +177,7 @@ const CertificateScreen: React.FC<{onBack: () => void, isDarkMode?: boolean}> = 
         <div className={`flex flex-col h-full ${isDarkMode ? 'bg-[#0F172A]' : 'bg-slate-50'}`}>
             <div className="p-6 flex justify-between items-center border-b border-white/5 no-print">
                 <div className="flex items-center gap-4">
-                    <button onClick={onBack} className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-white"><ArrowLeft size={20}/></button>
+                    <button onClick={onBack} className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-white active:scale-90 transition-all"><ArrowLeft size={20}/></button>
                     <h2 className="text-2xl font-['Teko'] font-bold uppercase tracking-wider flex items-center gap-2">
                         <Award className="text-amber-500" /> Penjana Sijil <span className="text-amber-500/50 text-xs ml-2">v2.0</span>
                     </h2>
@@ -189,7 +211,6 @@ const CertificateScreen: React.FC<{onBack: () => void, isDarkMode?: boolean}> = 
                             ))}
                         </div>
 
-                        {/* SIGNATURE OPTIONAL UPLOAD */}
                         <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700 border-dashed">
                              <div className="flex justify-between items-center mb-3">
                                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Tanda Tangan (Pilihan)</label>
@@ -209,8 +230,8 @@ const CertificateScreen: React.FC<{onBack: () => void, isDarkMode?: boolean}> = 
                         </div>
 
                         <div className="grid grid-cols-2 gap-2">
-                            <button onClick={() => document.getElementById('logo-s')?.click()} className="p-3 bg-slate-800 rounded-xl text-[9px] font-bold text-slate-400 uppercase border border-slate-700">Logo Sek</button>
-                            <button onClick={() => document.getElementById('logo-k')?.click()} className="p-3 bg-slate-800 rounded-xl text-[9px] font-bold text-slate-400 uppercase border border-slate-700">Logo KPM</button>
+                            <button onClick={() => {document.getElementById('logo-s')?.click(); notifyCtx?.notify("Pilih logo sekolah yang jelas (PNG transparent digalakkan).", "info");}} className="p-3 bg-slate-800 rounded-xl text-[9px] font-bold text-slate-400 uppercase border border-slate-700">Logo Sek</button>
+                            <button onClick={() => {document.getElementById('logo-k')?.click(); notifyCtx?.notify("Pilih logo KPM / JPN.", "info");}} className="p-3 bg-slate-800 rounded-xl text-[9px] font-bold text-slate-400 uppercase border border-slate-700">Logo KPM</button>
                             <input id="logo-s" type="file" className="hidden" onChange={e => e.target.files && setSchoolLogo(URL.createObjectURL(e.target.files[0]))}/>
                             <input id="logo-k" type="file" className="hidden" onChange={e => e.target.files && setKpmLogo(URL.createObjectURL(e.target.files[0]))}/>
                         </div>
