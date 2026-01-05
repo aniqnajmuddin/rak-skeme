@@ -4,23 +4,66 @@ class StudentDataService {
   private _allStudents: Student[] = [];
   private _activityRecords: ActivityRecordModel[] = [];
   private _takwim: TakwimEvent[] = [];
+  private _classes: string[] = []; 
+  
   private _suggestedActivities: string[] = ['MERENTAS DESA', 'KEJOHANAN MSSD', 'PERKHEMAHAN PERDANA', 'LATIHAN RUMAH SUKAN'];
   private _categories: string[] = ['UNIT BERUNIFORM', 'KELAB & PERSATUAN', 'SUKAN & PERMAINAN'];
   private _levels: string[] = ['SEKOLAH', 'ZON', 'DAERAH', 'NEGERI', 'KEBANGSAAN'];
 
-  constructor() {
-    this.loadDatabase();
-  }
+  constructor() { this.loadDatabase(); }
 
-  // --- GETTERS ---
+  // GETTERS
   getAllStudents() { return this._allStudents; }
   get activityRecords() { return this._activityRecords; }
   get takwim() { return this._takwim; }
+  get classes() { return this._classes; }
+  get levels() { return this._levels; }
   get suggestions() { return this._suggestedActivities; }
   get categories() { return this._categories; }
-  get levels() { return this._levels; }
 
-  // --- FUNGSI SIMPAN REKOD AKTIVITI (YANG HILANG TADI) ---
+  getUniqueClasses() {
+    const fromMurid = Array.from(new Set(this._allStudents.map(s => s.className))).filter(Boolean);
+    const combined = Array.from(new Set([...this._classes, ...fromMurid])).sort();
+    return combined;
+  }
+
+  // ACTIONS
+  deleteStudent(id: string) {
+    this._allStudents = this._allStudents.filter(s => s.id !== id);
+    this._saveToStorage();
+  }
+
+  bulkAddStudents(students: any[]) {
+    this._allStudents = students;
+    students.forEach(s => {
+      const cName = s.className.toUpperCase().trim();
+      if (cName && !this._classes.includes(cName)) this._classes.push(cName);
+    });
+    this._classes.sort();
+    this._saveToStorage();
+  }
+
+  addClass(className: string) {
+    const name = className.toUpperCase().trim();
+    if (name && !this._classes.includes(name)) {
+      this._classes.push(name);
+      this._classes.sort();
+      this._saveToStorage();
+    }
+  }
+
+  updateClass(oldName: string, newName: string) {
+    const nextName = newName.toUpperCase().trim();
+    this._classes = this._classes.map(c => c === oldName ? nextName : c);
+    this._allStudents = this._allStudents.map(s => s.className === oldName ? { ...s, className: nextName } : s);
+    this._saveToStorage();
+  }
+
+  deleteClass(className: string) {
+    this._classes = this._classes.filter(c => c !== className);
+    this._saveToStorage();
+  }
+
   addActivityRecord(record: any) {
     const newRecord: ActivityRecordModel = {
       ...record,
@@ -31,14 +74,10 @@ class StudentDataService {
     this._saveToStorage();
   }
 
-  // --- TAKWIM LOGIC ---
   saveTakwim(event: TakwimEvent) {
     const index = this._takwim.findIndex(e => e.id === event.id);
-    if (index !== -1) {
-      this._takwim[index] = event;
-    } else {
-      this._takwim.push(event);
-    }
+    if (index !== -1) this._takwim[index] = event;
+    else this._takwim.push(event);
     this._saveToStorage();
   }
 
@@ -47,18 +86,11 @@ class StudentDataService {
     this._saveToStorage();
   }
 
-  // --- DATA MANAGEMENT (JANGAN USIK DATA ASAL) ---
-  bulkAddStudents(students: Student[]) {
-    this._allStudents = students;
-    this._saveToStorage();
-  }
-
   private _saveToStorage() {
     const data = {
       students: this._allStudents,
       records: this._activityRecords,
-      suggests: this._suggestedActivities,
-      cats: this._categories,
+      classes: this._classes,
       takwim: this._takwim
     };
     localStorage.setItem('RAK_MASTER_DB', JSON.stringify(data));
@@ -71,18 +103,10 @@ class StudentDataService {
         const p = JSON.parse(raw);
         this._allStudents = p.students || [];
         this._activityRecords = p.records || [];
+        this._classes = p.classes || [];
         this._takwim = p.takwim || [];
-        this._suggestedActivities = p.suggests || this._suggestedActivities;
-        this._categories = p.cats || this._categories;
-      } catch (e) {
-        console.error("Gagal memuatkan pangkalan data:", e);
-      }
+      } catch (e) { console.error(e); }
     }
   }
-
-  getUniqueClasses() { 
-    return Array.from(new Set(this._allStudents.map(s => s.className))).filter(Boolean).sort(); 
-  }
 }
-
 export const studentDataService = new StudentDataService();
