@@ -1,0 +1,17 @@
+/* src/index.css */
+@import url('https://fonts.googleapis.com/css2?family=Teko:wght@300;400;500;600;700&family=Manrope:wght@300;400;500;600;700;800&family=Orbitron:wght@400;500;600;700;800;900&family=Caveat:wght@400;700&display=swap');
+
+body {
+  margin: 0;
+  font-family: 'Manrope', sans-serif;
+  background-color: #0F172A;
+  color: white;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
