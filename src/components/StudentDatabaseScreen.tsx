@@ -1,181 +1,132 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState } from 'react';
 import { studentDataService } from '../services/studentDataService';
-import { NotifyContext } from '../App'; // Panggil suis notifikasi
-import { Student } from '../types';
 import { 
-  Search, Plus, Edit2, Database, User, Filter, 
-  Trash2, ChevronRight, Hash, Users, ShieldAlert 
+  ArrowLeft, Search, ChevronDown, ChevronRight, 
+  UserCircle2, Trash2, Database 
 } from 'lucide-react';
 
-const StudentDatabaseScreen: React.FC = () => {
-  // --- AKTIFKAN NOTIFY ---
-  const notifyCtx = useContext(NotifyContext);
-
-  const [students, setStudents] = useState<Student[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedClassFilter, setSelectedClassFilter] = useState('SEMUA');
-  const [availableClasses, setAvailableClasses] = useState<string[]>([]);
+const StudentDatabaseScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+  const [query, setQuery] = useState('');
+  const [expandedClass, setExpandedClass] = useState<string | null>(null);
   
-  useEffect(() => { 
-      const loadId = notifyCtx?.notify("Memuatkan pangkalan data murid...", "loading");
-      
-      const allStudents = studentDataService.getAllStudents();
-      setStudents([...allStudents]); 
-      setAvailableClasses(['SEMUA', ...studentDataService.getUniqueClasses()]);
-      
-      if (loadId) notifyCtx?.removeNotify(loadId);
-  }, []);
+  const allStudents = studentDataService.getAllStudents() || [];
 
-  const handleFilterClass = (cls: string) => {
-    setSelectedClassFilter(cls);
-    if (cls !== 'SEMUA') {
-        notifyCtx?.notify(`Menapis murid kelas ${cls}`, "info");
+  // 1. Grouping murid ikut kelas (Logic Intelligence)
+  const groupedStudents = allStudents.reduce((acc: any, student) => {
+    const className = student.className || 'TIADA KELAS';
+    if (!acc[className]) acc[className] = [];
+    acc[className].push(student);
+    return acc;
+  }, {});
+
+  // Ambil senarai kelas dan susun (A-Z)
+  const classes = Object.keys(groupedStudents).sort();
+
+  const handleDelete = (id: string) => {
+    if (window.confirm("Bohh pasti nak padam data murid ni?")) {
+      studentDataService.deleteStudent(id);
+      window.location.reload(); // Refresh untuk update senarai
     }
   };
-
-  const handleDeleteStudent = (id: string, name: string) => {
-    if (confirm(`Adakah anda pasti untuk memadam data ${name}?`)) {
-        studentDataService.deleteStudent(id);
-        setStudents(prev => prev.filter(s => s.id !== id));
-        notifyCtx?.notify(`Rekod ${name} telah dipadam selamanya.`, "success");
-    }
-  };
-
-  const filteredStudents = students.filter(s => {
-    const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || s.icNumber.includes(searchTerm);
-    const matchesClass = selectedClassFilter === 'SEMUA' || s.className === selectedClassFilter;
-    return matchesSearch && matchesClass;
-  });
 
   return (
-    <div className="flex flex-col h-full bg-[#0F172A] text-slate-100 font-['Manrope'] p-6 md:p-10 overflow-y-auto no-scrollbar">
-      
-      <div className="max-w-7xl mx-auto w-full">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
-            <div>
-                <h2 className="text-5xl font-['Teko'] font-bold text-white uppercase tracking-tight flex items-center gap-4">
-                    <Database className="text-blue-500" size={40} /> PANGKALAN <span className="text-blue-500">DATA</span>
-                </h2>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mt-1">Sistem Pengurusan Maklumat Murid WIRA KOKU</p>
-            </div>
-            <div className="flex gap-3">
-                <button 
-                  onClick={() => notifyCtx?.notify("Fungsi 'Urus Kelas' akan tersedia pada kemaskini akan datang.", "info")}
-                  className="bg-slate-800 border border-white/5 text-slate-400 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:text-white transition-all"
-                >
-                  Urus Kelas
-                </button>
-                <button 
-                  onClick={() => notifyCtx?.notify("Sila gunakan borang 'Pilih Peserta' di skrin Rekod Aktiviti untuk pendaftaran pantas.", "info")}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 flex items-center gap-2 shadow-xl shadow-blue-600/20 active:scale-95 transition-all"
-                >
-                  <Plus size={16}/> Tambah Murid
-                </button>
-            </div>
+    <div className="min-h-screen bg-[#020617] text-white p-4 md:p-10 pb-32 animate-in fade-in duration-500 font-['Manrope']">
+      <div className="max-w-4xl mx-auto space-y-8">
+        
+        {/* HEADER SECTION - TRADEMARK RAK SKeMe */}
+        <div className="flex items-center gap-4 border-b border-white/5 pb-6">
+          <button onClick={onBack} className="p-3 rounded-2xl bg-white/5 border border-white/10 text-emerald-500 hover:bg-emerald-500/10 transition-all">
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <h2 className="text-4xl font-['Teko'] font-bold uppercase text-white leading-none tracking-tight">DATA <span className="text-emerald-500">INDUK</span></h2>
+            <p className="text-[10px] font-black text-slate-500 tracking-[0.3em] uppercase mt-1">Susunan Sistematik Mengikut Kelas</p>
+          </div>
         </div>
 
-        {/* Search & Filter Bar */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
-            <div className="lg:col-span-3 relative group">
-                <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
-                    <Search className="text-slate-500 group-focus-within:text-blue-500 transition-colors" size={20}/>
-                </div>
-                <input 
-                  type="text" 
-                  placeholder="CARI NAMA ATAU NO. MYKID..." 
-                  className="w-full bg-slate-800/40 border-2 border-white/5 rounded-[1.5rem] pl-16 pr-6 py-5 text-white font-bold uppercase tracking-widest focus:border-blue-500/50 focus:bg-slate-800/60 outline-none transition-all" 
-                  value={searchTerm} 
-                  onChange={e => setSearchTerm(e.target.value)} 
-                />
-            </div>
-            <div className="relative">
-                <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
-                    <Filter className="text-slate-500" size={16}/>
-                </div>
-                <select 
-                    value={selectedClassFilter} 
-                    onChange={e => handleFilterClass(e.target.value)} 
-                    className="w-full bg-slate-800/40 border-2 border-white/5 rounded-[1.5rem] pl-12 pr-6 py-5 text-white font-black uppercase text-[10px] tracking-widest appearance-none outline-none focus:border-blue-500/50 cursor-pointer"
-                >
-                    {availableClasses.map(cls => <option key={cls} value={cls} className="bg-[#0F172A]">{cls}</option>)}
-                </select>
-            </div>
+        {/* SEARCH BAR PINTAR */}
+        <div className="relative group">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-all" size={18} />
+          <input 
+            type="text" 
+            placeholder="CARI NAMA ATAU NO. KAD PENGENALAN..." 
+            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-6 text-[10px] font-black uppercase tracking-widest focus:border-emerald-500/50 outline-none transition-all"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
         </div>
 
-        {/* Table Data */}
-        <div className="bg-slate-800/20 border border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl backdrop-blur-sm">
-            <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="bg-slate-800/50 text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">
-                            <th className="p-6">Maklumat Murid</th>
-                            <th className="p-6">No. Kad Pengenalan</th>
-                            <th className="p-6 text-center">Kelas</th>
-                            <th className="p-6 text-center">Rumah</th>
-                            <th className="p-6 text-right">Tindakan</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                        {filteredStudents.length > 0 ? filteredStudents.map(s => (
-                            <tr key={s.id} className="hover:bg-white/5 transition-all group">
-                                <td className="p-6">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 font-bold group-hover:scale-110 transition-transform">
-                                            {s.name.charAt(0)}
-                                        </div>
-                                        <div className="font-bold text-sm text-white uppercase tracking-wide group-hover:text-blue-400 transition-colors">{s.name}</div>
-                                    </div>
-                                </td>
-                                <td className="p-6 font-mono text-xs text-slate-500 tracking-tighter">{s.icNumber}</td>
-                                <td className="p-6 text-center">
-                                    <span className="bg-blue-500/10 px-4 py-1.5 rounded-full text-[10px] font-black text-blue-500 uppercase border border-blue-500/20">
-                                        {s.className}
-                                    </span>
-                                </td>
-                                <td className="p-6 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                                    {s.house || 'TIADA'}
-                                </td>
-                                <td className="p-6">
-                                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button 
-                                          onClick={() => notifyCtx?.notify("Mod kemaskini profil sedang diselenggara.", "info")}
-                                          className="p-3 bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-all"
-                                        >
-                                          <Edit2 size={16}/>
-                                        </button>
-                                        <button 
-                                          onClick={() => handleDeleteStudent(s.id, s.name)}
-                                          className="p-3 bg-slate-800 rounded-xl text-slate-400 hover:text-rose-500 transition-all"
-                                        >
-                                          <Trash2 size={16}/>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        )) : (
-                          <tr>
-                            <td colSpan={5} className="p-20 text-center">
-                                <ShieldAlert className="mx-auto text-slate-800 mb-4" size={48} />
-                                <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Tiada rekod murid ditemui</p>
-                            </td>
-                          </tr>
-                        )}
-                    </tbody>
-                </table>
+        {/* CLASS ACCORDION LIST */}
+        <div className="space-y-3">
+          {classes.length > 0 ? classes.map((className) => {
+            // Filter murid dalam kelas berdasarkan carian
+            const filteredInClass = groupedStudents[className].filter((s: any) => 
+              (s.name || '').toLowerCase().includes(query.toLowerCase()) || 
+              (s.icNumber || '').includes(query)
+            );
+
+            // Kalau tengah cari, dan kelas tu tak ada nama yang dicari, kita sorok kelas tu
+            if (query && filteredInClass.length === 0) return null;
+
+            // Expand secara automatik kalau user sedang buat carian
+            const isExpanded = expandedClass === className || query.length > 0;
+
+            return (
+              <div key={className} className="bg-white/5 border border-white/5 rounded-[2rem] overflow-hidden transition-all hover:border-white/10 shadow-xl">
+                {/* Bar Kelas (Trigger) */}
+                <button 
+                  onClick={() => setExpandedClass(isExpanded ? null : className)}
+                  className={`w-full p-6 flex justify-between items-center transition-all ${isExpanded ? 'bg-white/5' : 'hover:bg-white/5'}`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`p-2 rounded-xl transition-all ${isExpanded ? 'bg-emerald-500 text-white' : 'bg-white/5 text-emerald-500'}`}>
+                      <Database size={20} />
+                    </div>
+                    <span className="text-sm font-black uppercase tracking-widest text-white">KELAS: {className}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-[9px] font-black bg-white/5 px-4 py-1.5 rounded-full text-slate-400 border border-white/5">
+                      {filteredInClass.length} ENTITI
+                    </span>
+                    <div className="text-slate-600 transition-transform">
+                       {isExpanded ? <ChevronDown size={20}/> : <ChevronRight size={20}/>}
+                    </div>
+                  </div>
+                </button>
+
+                {/* Senarai Murid (Content) */}
+                {isExpanded && (
+                  <div className="p-4 pt-0 space-y-2 animate-in slide-in-from-top-2 duration-300">
+                    <div className="h-[1px] bg-white/5 w-full mb-4" />
+                    {filteredInClass.map((s: any) => (
+                      <div key={s.id} className="bg-black/20 p-4 rounded-2xl border border-white/5 flex justify-between items-center group hover:bg-white/5 transition-all">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-slate-500 group-hover:text-emerald-500 transition-colors">
+                            <UserCircle2 size={24} />
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-black uppercase text-white group-hover:text-emerald-500 transition-colors">{s.name}</p>
+                            <p className="text-[9px] text-slate-500 font-bold tracking-tighter italic">{s.icNumber}</p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => handleDelete(s.id)}
+                          className="p-3 text-slate-700 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          }) : (
+            <div className="text-center py-24 bg-white/5 border-2 border-dashed border-white/5 rounded-[3rem]">
+               <Database className="mx-auto text-slate-800 mb-4 opacity-20" size={48} />
+               <p className="text-[10px] text-slate-600 font-black uppercase tracking-[0.4em]">Tiada Data Untuk Dipaparkan</p>
             </div>
-            
-            {/* Footer Table Stats */}
-            <div className="bg-slate-800/50 p-6 flex justify-between items-center border-t border-white/5">
-                <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                    Menunjukkan {filteredStudents.length} daripada {students.length} rekod
-                </div>
-                <div className="flex gap-1">
-                   {[1].map(p => (
-                       <div key={p} className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-blue-600/20">1</div>
-                   ))}
-                </div>
-            </div>
+          )}
         </div>
       </div>
     </div>

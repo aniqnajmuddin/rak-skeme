@@ -16,10 +16,13 @@ export interface ActivityParticipant {
 }
 
 export interface ActivityRecordModel {
+  id: string;
   programName: string;
   date: string;
+  category: string;
+  level: string;
   participants: ActivityParticipant[];
-  evidenceFiles: string[];
+  evidenceFiles?: string[]; // <--- TAMBAH TANDA SOAL (?) DI SINI
 }
 
 export interface TakwimEvent {
