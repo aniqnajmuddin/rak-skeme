@@ -1,24 +1,44 @@
-<style>
-  /* ... kod asal bohh ... */
+<!DOCTYPE html>
+<html lang="ms">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RAK SKeMe | Unit Kokurikulum</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@300;700&family=Manrope:wght@400;800&family=Caveat:wght@700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Manrope', sans-serif;
+      }
 
-  /* Efek Terapung untuk Kad Login */
-  @keyframes float {
-    0% { transform: translateY(0px) rotate(0deg); }
-    50% { transform: translateY(-10px) rotate(0.5deg); }
-    100% { transform: translateY(0px) rotate(0deg); }
-  }
+      /* Animasi Float & Glow yang kita buat tadi */
+      @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-15px); }
+      }
+      .animate-float { animation: float 6s ease-in-out infinite; }
 
-  .animate-float {
-    animation: float 6s ease-in-out infinite;
-  }
+      @keyframes glow {
+        0%, 100% { opacity: 0.2; transform: scale(1); }
+        50% { opacity: 0.4; transform: scale(1.1); }
+      }
+      .glow-pulse { animation: glow 8s ease-in-out infinite; }
 
-  /* Efek Cahaya Bergerak di Latar Belakang */
-  @keyframes pulse-glow {
-    0%, 100% { opacity: 0.2; transform: scale(1); }
-    50% { opacity: 0.3; transform: scale(1.1); }
-  }
-
-  .glow-pulse {
-    animation: pulse-glow 8s ease-in-out infinite;
-  }
-</style>
+      /* Sembunyikan Scrollbar tapi boleh scroll */
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
