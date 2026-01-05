@@ -1,221 +1,188 @@
-import React, { useState, useEffect } from 'react';
-import { studentDataService } from '../services/studentDataService';
-import { Student, ActivityParticipant } from '../types';
+import React, { useState, useContext } from 'react';
+import { Save, ChevronLeft, Calendar, Users, MapPin, Tag, Plus, MessageSquare } from 'lucide-react';
+import { NotifyContext } from '../App';
 import TechAutocomplete from './TechAutocomplete';
-import { 
-  Plus, Trash2, Calendar, Save, ArrowLeft, Zap, CheckCircle, FileUp, 
-  Search, Filter, UserPlus, X, GraduationCap
-} from 'lucide-react';
 
-const ActivityRecordScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
-  const [activeTab, setActiveTab] = useState<'SEKOLAH' | 'LUAR'>('SEKOLAH');
-  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [programName, setProgramName] = useState('');
-  const [level, setLevel] = useState('');
-  const [participants, setParticipants] = useState<Partial<ActivityParticipant>[]>([]);
+interface ActivityRecordScreenProps {
+  onBack: () => void;
+}
+
+const ActivityRecordScreen: React.FC<ActivityRecordScreenProps> = ({ onBack }) => {
+  const notifyCtx = useContext(NotifyContext);
   
-  const [isStudentPickerOpen, setIsStudentPickerOpen] = useState(false);
-  const [studentSearchQuery, setStudentSearchQuery] = useState('');
-  const [selectedClassFilter, setSelectedClassFilter] = useState<string>('SEMUA');
-  
-  const [showQuickAdd, setShowQuickAdd] = useState(false);
-  const [newStudent, setNewStudent] = useState({ name: '', ic: '', class: '' });
+  // LOGIK ASAL: Data yang admin dah tetapkan
+  const activitySuggestions = [
+    "Mesyuarat Agung Tahunan", "Latihan Mingguan", "Kejohanan Sukan Tahunan",
+    "Perkhemahan Perdana", "Kursus Kepimpinan", "Karnival Ko-Kurikulum"
+  ];
 
-  const [isSaving, setIsSaving] = useState(false);
-  const [toast, setToast] = useState<{msg: string; type: 'success' | 'error'} | null>(null);
-  const [availableClasses, setAvailableClasses] = useState<string[]>([]);
-
-  useEffect(() => {
-    setAvailableClasses(['SEMUA', ...studentDataService.getUniqueClasses()]);
-  }, [isStudentPickerOpen]);
-
-  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  const handleToggleParticipant = (student: any) => {
-    const studentIc = student.icNumber || student.ic;
-    const exists = participants.some(p => p.ic === studentIc);
-    if (exists) {
-      setParticipants(prev => prev.filter(p => p.ic !== studentIc));
-    } else {
-      setParticipants(prev => [...prev, {
-        name: student.name, 
-        ic: studentIc, 
-        class: student.className || student.class,
-        achievement: 'Penyertaan', 
-        level: activeTab === 'SEKOLAH' ? 'Sekolah' : (level || 'Luar')
-      }]);
-    }
-  };
-
-  const handleQuickAdd = () => {
-    if (!newStudent.name || !newStudent.ic || !newStudent.class) {
-      showToast("Lengkapkan maklumat murid baru", "error");
-      return;
-    }
-    // Hantar data lengkap mengikut Type Student
-    const added = studentDataService.addStudent({
-      id: `NEW-${Date.now()}`, // Janakan ID unik
-      name: newStudent.name.toUpperCase(),
-      icNumber: newStudent.ic,
-      className: newStudent.class.toUpperCase(),
-      gender: 'L', // Default dummy
-      house: 'TIADA' // Default dummy
-    });
-    
-    handleToggleParticipant(added);
-    setNewStudent({ name: '', ic: '', class: '' });
-    setShowQuickAdd(false);
-    showToast("Murid baru ditambah ke sistem!");
-  };
-
-  const filteredStudents = studentDataService.getAllStudents().filter(s => {
-    const matchesSearch = s.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) || s.icNumber.includes(studentSearchQuery);
-    const matchesClass = selectedClassFilter === 'SEMUA' || s.className === selectedClassFilter;
-    return matchesSearch && matchesClass;
+  const [formData, setFormData] = useState({
+    title: '',
+    category: 'Sukan/Permainan', // Default kategori
+    type: 'Sekolah', // Luar / Sekolah
+    date: new Date().toISOString().split('T')[0],
+    location: '',
+    attendance: '',
+    notes: ''
   });
 
-  const handleSaveFinal = async () => {
-    if (!programName || participants.length === 0) {
-        showToast("Nama program & peserta diperlukan", "error");
-        return;
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.title || !formData.location || !formData.attendance) {
+      notifyCtx?.notify("Lengkapkan maklumat wajib bohh!", "error");
+      return;
     }
-    setIsSaving(true);
-    try {
-        await studentDataService.saveActivityRecord(programName, participants, new Date(date));
-        showToast("Rekod berjaya disimpan!");
-        setParticipants([]);
-        setProgramName('');
-    } catch (e) {
-        showToast("Gagal simpan", "error");
-    } finally {
-        setIsSaving(false);
-    }
+
+    const loadId = notifyCtx?.notify("Menyimpan rekod aktiviti...", "loading");
+
+    // Simulasi simpan data
+    setTimeout(() => {
+      notifyCtx?.removeNotify(loadId!);
+      notifyCtx?.notify("Rekod Aktiviti Berjaya Disimpan!", "success");
+      onBack();
+    }, 1500);
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0F172A] text-slate-100 font-['Manrope']">
-      <div className="p-6 md:px-10 flex flex-col gap-6 max-w-5xl mx-auto w-full">
-         <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-                <button onClick={onBack} className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-blue-400 hover:bg-blue-600 hover:text-white transition-all"><ArrowLeft size={20}/></button>
-                <h2 className="text-3xl font-['Teko'] font-bold uppercase tracking-wide leading-none">REKOD <span className="text-orange-500">AKTIVITI</span></h2>
-            </div>
-            <button onClick={() => setIsStudentPickerOpen(true)} className="bg-orange-500 hover:bg-orange-600 px-6 py-2.5 rounded-xl font-bold text-xs uppercase flex items-center gap-2 shadow-lg shadow-orange-500/20 transition-all">
-                <UserPlus size={16}/> Pilih Peserta ({participants.length})
-            </button>
-         </div>
-
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-slate-800/50 p-6 rounded-2xl border border-white/5">
-                <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block">Nama Program</label>
-                <input value={programName} onChange={e => setProgramName(e.target.value.toUpperCase())} className="w-full bg-transparent text-xl font-['Teko'] text-white border-b-2 border-slate-700 focus:border-orange-500 outline-none transition-all" placeholder="CONTOH: MERENTAS DESA" />
-            </div>
-            <div className="bg-slate-800/50 p-6 rounded-2xl border border-white/5">
-                <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block">Tarikh</label>
-                <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-transparent text-xl font-['Teko'] text-white outline-none" />
-            </div>
-         </div>
-
-         {participants.length > 0 && (
-             <div className="space-y-3 animate-in fade-in duration-500">
-                <div className="flex justify-between items-center px-2">
-                    <span className="text-[10px] font-black text-slate-500 uppercase">Senarai Peserta Dipilih</span>
-                    <button onClick={() => setParticipants([])} className="text-[9px] font-bold text-red-400 uppercase">Padam Semua</button>
-                </div>
-                {participants.map((p, i) => (
-                    <div key={i} className="bg-slate-800/30 p-4 rounded-xl border border-white/5 flex items-center justify-between">
-                        <div>
-                            <div className="text-[11px] font-black uppercase text-white">{p.name}</div>
-                            <div className="text-[9px] font-bold text-slate-500 uppercase">{p.class} • {p.ic}</div>
-                        </div>
-                        <button onClick={() => setParticipants(prev => prev.filter(item => item.ic !== p.ic))} className="text-slate-600 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>
-                    </div>
-                ))}
-                <button onClick={handleSaveFinal} disabled={isSaving} className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-2xl font-['Teko'] text-xl uppercase tracking-widest transition-all mt-4">
-                    {isSaving ? "Menyimpan..." : "Simpan Rekod Aktiviti"}
-                </button>
-             </div>
-         )}
+    <div className="min-h-screen p-4 md:p-8 animate-in fade-in duration-500">
+      {/* Header */}
+      <div className="max-w-4xl mx-auto flex items-center justify-between mb-10">
+        <button onClick={onBack} className="p-3 rounded-2xl bg-white/5 border border-white/10 text-slate-400 hover:text-white transition-all">
+          <ChevronLeft size={24} />
+        </button>
+        <div className="text-right">
+          <h1 className="text-4xl font-['Teko'] font-bold uppercase leading-none tracking-tighter">Rekod <span className="text-blue-500">Aktiviti</span></h1>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Unit Kokurikulum TBA5014</p>
+        </div>
       </div>
 
-      {isStudentPickerOpen && (
-        <div className="fixed inset-0 z-[2000] bg-slate-900 flex flex-col md:p-10">
-            <div className="flex-1 bg-slate-900 border border-white/10 md:rounded-[2.5rem] flex flex-col overflow-hidden shadow-2xl">
-                <div className="p-6 bg-slate-800/50 flex justify-between items-center border-b border-white/5">
-                    <div className="flex items-center gap-4">
-                        <div className="bg-orange-500 p-2 rounded-lg text-white"><Search size={20}/></div>
-                        <input 
-                            placeholder="Cari murid / IC..." 
-                            className="bg-transparent text-xl font-['Teko'] text-white outline-none w-full md:w-80"
-                            value={studentSearchQuery}
-                            onChange={e => setStudentSearchQuery(e.target.value)}
-                        />
-                    </div>
-                    <button onClick={() => setIsStudentPickerOpen(false)} className="bg-white/10 p-2 rounded-full text-white hover:bg-red-500 transition-all"><X/></button>
-                </div>
-
-                <div className="flex gap-2 p-4 overflow-x-auto no-scrollbar bg-slate-900/50 border-b border-white/5">
-                    {availableClasses.map(cls => (
-                        <button key={cls} onClick={() => setSelectedClassFilter(cls)} className={`px-5 py-2 rounded-full text-[10px] font-black uppercase whitespace-nowrap transition-all ${selectedClassFilter === cls ? 'bg-orange-500 text-white' : 'bg-slate-800 text-slate-500 hover:bg-slate-700'}`}>{cls}</button>
-                    ))}
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                        <button onClick={() => setShowQuickAdd(true)} className="p-4 rounded-2xl border-2 border-dashed border-slate-700 hover:border-orange-500 flex flex-col items-center justify-center gap-2 group transition-all h-[80px]">
-                            <UserPlus size={20} className="text-orange-500"/>
-                            <span className="text-[9px] font-black uppercase text-slate-500">Daftar Baru</span>
-                        </button>
-
-                        {filteredStudents.map(student => {
-                            const isSelected = participants.some(p => p.ic === student.icNumber);
-                            return (
-                                <div key={student.id} onClick={() => handleToggleParticipant(student)} className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 h-[80px] ${isSelected ? 'bg-orange-500/10 border-orange-500' : 'bg-slate-800/40 border-transparent hover:border-slate-700'}`}>
-                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 shrink-0 ${isSelected ? 'bg-orange-500 border-orange-500 text-white' : 'border-slate-700 text-slate-700'}`}>{isSelected && <CheckCircle size={12}/>}</div>
-                                    <div className="min-w-0">
-                                        <div className="text-[10px] font-black uppercase text-white truncate">{student.name}</div>
-                                        <div className="text-[9px] font-bold text-slate-500 uppercase">{student.className}</div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                <div className="p-6 bg-slate-800/50 flex justify-between items-center border-t border-white/5">
-                    <div className="text-2xl font-['Teko'] text-white uppercase">{participants.length} <span className="text-slate-500">Dipilih</span></div>
-                    <button onClick={() => setIsStudentPickerOpen(false)} className="bg-blue-600 hover:bg-blue-500 px-10 py-3 rounded-2xl font-black text-xs uppercase text-white tracking-widest active:scale-95 transition-all">Selesai</button>
-                </div>
-            </div>
-
-            {showQuickAdd && (
-                <div className="absolute inset-0 z-[2100] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-6">
-                    <div className="bg-slate-800 w-full max-w-md rounded-[2.5rem] p-8 border border-white/10 shadow-3xl">
-                        <h3 className="text-2xl font-['Teko'] font-bold text-white uppercase mb-6 flex items-center gap-2"><UserPlus className="text-orange-500"/> Daftar Murid Baru</h3>
-                        <div className="space-y-4">
-                            <input value={newStudent.name} onChange={e => setNewStudent({...newStudent, name: e.target.value.toUpperCase()})} className="w-full bg-slate-900 border border-white/5 p-4 rounded-xl text-white font-bold" placeholder="NAMA PENUH" />
-                            <input value={newStudent.ic} onChange={e => setNewStudent({...newStudent, ic: e.target.value})} className="w-full bg-slate-900 border border-white/5 p-4 rounded-xl text-white font-bold" placeholder="NO MYKID / IC" />
-                            <input value={newStudent.class} onChange={e => setNewStudent({...newStudent, class: e.target.value.toUpperCase()})} className="w-full bg-slate-900 border border-white/5 p-4 rounded-xl text-white font-bold" placeholder="KELAS (CONTOH: 6A)" />
-                        </div>
-                        <div className="flex gap-3 mt-8">
-                            <button onClick={() => setShowQuickAdd(false)} className="flex-1 py-4 text-slate-500 font-bold uppercase text-xs">Batal</button>
-                            <button onClick={handleQuickAdd} className="flex-1 py-4 bg-orange-500 rounded-2xl text-white font-black uppercase text-xs">Simpan & Pilih</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-      )}
-      
-      {toast && (
-          <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[3000] px-8 py-3 rounded-full bg-emerald-600 text-white shadow-2xl flex items-center gap-3">
-              <CheckCircle size={18} />
-              <span className="text-xs font-black uppercase tracking-widest">{toast.msg}</span>
+      <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-6">
+        
+        {/* Bahagian 1: Maklumat Utama */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Autocomplete dengan Kebolehan Taip Manual */}
+          <div className="space-y-2">
+            <TechAutocomplete 
+              label="Nama Acara / Program / Aktiviti"
+              suggestions={activitySuggestions}
+              value={formData.title}
+              onChange={(val) => setFormData({...formData, title: val})}
+              placeholder="Cari atau taip nama aktiviti..."
+            />
+            <p className="text-[9px] text-slate-500 italic ml-2">*Boleh taip secara manual jika tiada dalam senarai</p>
           </div>
-      )}
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase text-blue-500 tracking-widest flex items-center gap-2">
+              <Calendar size={12} /> Tarikh Aktiviti
+            </label>
+            <input 
+              type="date"
+              className="w-full bg-slate-900 border border-white/10 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500 transition-all"
+              value={formData.date}
+              onChange={(e) => setFormData({...formData, date: e.target.value})}
+            />
+          </div>
+        </div>
+
+        {/* Bahagian 2: Kategori & Jenis (PENTING UNTUK ANALISIS) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/5 p-6 rounded-[2.5rem] border border-white/5">
+          <div className="space-y-3">
+            <label className="text-[10px] font-black uppercase text-blue-500 tracking-widest flex items-center gap-2">
+              <Tag size={12} /> Kategori Unit
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {['Sukan/Permainan', 'Kelab/Persatuan', 'Unit Beruniform', 'Lain-lain'].map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setFormData({...formData, category: cat})}
+                  className={`py-3 px-4 rounded-xl text-[10px] font-bold uppercase tracking-tighter transition-all border ${
+                    formData.category === cat 
+                    ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-500/20' 
+                    : 'bg-slate-950 border-white/5 text-slate-500 hover:border-white/20'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <label className="text-[10px] font-black uppercase text-blue-500 tracking-widest flex items-center gap-2">
+              <MapPin size={12} /> Peringkat / Jenis
+            </label>
+            <div className="flex gap-2">
+              {['Sekolah', 'Zon/Daerah', 'Negeri', 'Kebangsaan'].map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setFormData({...formData, type: t})}
+                  className={`flex-1 py-3 px-2 rounded-xl text-[10px] font-bold uppercase transition-all border ${
+                    formData.type === t 
+                    ? 'bg-amber-500 border-amber-400 text-slate-900 shadow-lg shadow-amber-500/20' 
+                    : 'bg-slate-950 border-white/5 text-slate-500 hover:border-white/20'
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Bahagian 3: Lokasi & Kehadiran */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase text-blue-500 tracking-widest">Lokasi Kejadian</label>
+            <input 
+              type="text"
+              placeholder="Cth: Padang Sekolah / Zoo Negara"
+              className="w-full bg-slate-900 border border-white/10 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500"
+              value={formData.location}
+              onChange={(e) => setFormData({...formData, location: e.target.value})}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase text-blue-500 tracking-widest">Jumlah Kehadiran Murid</label>
+            <div className="relative">
+              <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
+              <input 
+                type="number"
+                placeholder="0"
+                className="w-full bg-slate-900 border border-white/10 rounded-2xl p-4 pl-12 text-white font-bold outline-none focus:border-blue-500"
+                value={formData.attendance}
+                onChange={(e) => setFormData({...formData, attendance: e.target.value})}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Bahagian 4: Catatan Tambahan */}
+        <div className="space-y-2">
+          <label className="text-[10px] font-black uppercase text-blue-500 tracking-widest flex items-center gap-2">
+            <MessageSquare size={12} /> Catatan / Laporan Ringkas
+          </label>
+          <textarea 
+            rows={4}
+            className="w-full bg-slate-900 border border-white/10 rounded-3xl p-5 text-white font-medium outline-none focus:border-blue-500 no-scrollbar"
+            placeholder="Taip catatan aktiviti di sini..."
+            value={formData.notes}
+            onChange={(e) => setFormData({...formData, notes: e.target.value})}
+          ></textarea>
+        </div>
+
+        {/* Submit Button */}
+        <button 
+          type="submit"
+          className="w-full py-6 bg-blue-600 hover:bg-blue-500 text-white rounded-[2rem] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 transition-all active:scale-95 shadow-2xl shadow-blue-500/20"
+        >
+          <Save size={20} /> Simpan Rekod Penuh
+        </button>
+
+      </form>
     </div>
   );
 };
