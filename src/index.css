@@ -1,11 +1,32 @@
 /* src/index.css */
 @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300;400;500;600;700&family=Manrope:wght@300;400;500;600;700;800&family=Orbitron:wght@400;500;600;700;800;900&family=Caveat:wght@400;700&display=swap');
 
+:root {
+  /* Saiz tulisan asas yang akan mengecil di desktop (fluid) */
+  font-size: clamp(14px, 1.2vw, 16px);
+}
+
 body {
   margin: 0;
   font-family: 'Manrope', sans-serif;
   background-color: #0F172A;
   color: white;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar untuk Desktop supaya tak nampak buruk */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0F172A;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -14,4 +35,18 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Efek Glassmorphism untuk kotak input di Report Generator */
+.glass-input {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.glass-input:focus {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #3b82f6;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
 }
