@@ -22,7 +22,7 @@ export interface ActivityRecordModel {
   category: string;
   level: string;
   participants: ActivityParticipant[];
-  evidenceFiles?: string[]; // <--- TAMBAH TANDA SOAL (?) DI SINI
+  evidenceFiles?: string[]; 
 }
 
 export interface TakwimEvent {
@@ -30,6 +30,28 @@ export interface TakwimEvent {
   title: string;
   date: string;
   description: string;
+  level: string; // Wajib ada
+  venue: string; // Wajib ada
+}
+
+// --- DATA RUMAH SUKAN ---
+export interface SportsHouse {
+  id: string;
+  name: string; 
+  color: string; 
+  captainName?: string; 
+  motto?: string;
+  points: number; // Wajib ada untuk simpan markah
+}
+
+// --- DATA SENARAI ACARA (KPM/MSSM) ---
+export interface SportListEvent {
+  id: string;
+  name: string;      // Cth: "LARI 100M"
+  category: string;  // Cth: "BALAPAN"
+  gender: 'L' | 'P' | 'CAMPURAN';
+  ageClass: 'A' | 'B' | 'C' | 'OT'; // A=Thn 6, B=Thn 5, C=Thn 4
+  fullname: string;  // Cth: "LARI 100M (L) KELAS A"
 }
 
 export interface AppNotification {
@@ -45,35 +67,4 @@ export interface User {
   name: string;
   role: string;
   email: string;
-}
-
-// NEW TYPES FOR SPORTS MODULE
-export interface SportsHouse {
-  id: string;
-  name: string; // e.g., "MERAH" or "JEBAT"
-  color: string; // e.g., "#FF0000"
-  captainName?: string; // e.g. "Cikgu Ahmad"
-  motto?: string;
-}
-
-export interface SportEvent {
-  id: string;
-  name: string; // e.g., "Lari 100m (L)", "Lontar Peluru (P)"
-  category: string; // e.g., "TRACK", "FIELD", "SUKANEKA"
-  status: 'PENDING' | 'COMPLETED';
-  winners: {
-    gold: { studentId: string; name: string; house: string } | null;
-    silver: { studentId: string; name: string; house: string } | null;
-    bronze: { studentId: string; name: string; house: string } | null;
-    fourth: { studentId: string; name: string; house: string } | null;
-  };
-}
-
-export interface HouseStats {
-  id: string;
-  name: string;
-  color: string;
-  captainName?: string;
-  points: number;
-  medals: { gold: number; silver: number; bronze: number };
 }

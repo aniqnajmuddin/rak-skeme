@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { studentDataService } from '../services/studentDataService';
 import { NotifyContext } from '../App';
-import { ArrowLeft, Search, Save, ChevronRight, Trophy, CheckSquare, Square, Users } from 'lucide-react';
+import { ArrowLeft, Save, ChevronRight, Trophy, CheckSquare, Square, Users } from 'lucide-react';
 
 const ActivityRecordScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const notifyCtx = useContext(NotifyContext);
@@ -10,8 +10,10 @@ const ActivityRecordScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [selClass, setSelClass] = useState('SEMUA');
   const [selStudents, setSelStudents] = useState<any[]>([]);
   const [available, setAvailable] = useState<any[]>([]);
+  
+  // FIX: Tukar 'title' kepada 'programName' untuk selaras dengan types.ts
   const [activity, setActivity] = useState({ 
-    title: '', 
+    programName: '', 
     date: new Date().toISOString().split('T')[0], 
     category: 'SUKAN & PERMAINAN', 
     level: 'SEKOLAH' 
@@ -19,7 +21,6 @@ const ActivityRecordScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
   useEffect(() => {
     let f = studentDataService.getAllStudents();
-    // Tapis murid sistem
     f = f.filter(s => s.name !== 'SISTEM: PENANDA KELAS');
     
     if (selClass !== 'SEMUA') f = f.filter(s => s.className === selClass);
@@ -30,17 +31,17 @@ const ActivityRecordScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
   const handleSelectAll = () => {
     if (selStudents.length === available.length) {
-      setSelStudents([]); // Unselect semua
+      setSelStudents([]); 
     } else {
-      // Select semua yang ada dalam filter sekarang (bukan semua dalam sekolah)
-      // Default achievement = PENYERTAAN
       const all = available.map(s => ({ ...s, achievement: 'PENYERTAAN' }));
       setSelStudents(all);
     }
   };
 
   const handleSave = () => {
-    if (!activity.title || selStudents.length === 0) return notifyCtx?.notify("Sila lengkapkan maklumat & pilih murid!", "error");
+    // FIX: Check 'programName' instead of 'title'
+    if (!activity.programName || selStudents.length === 0) return notifyCtx?.notify("Sila lengkapkan maklumat & pilih murid!", "error");
+    
     studentDataService.addActivityRecord({ ...activity, participants: selStudents });
     notifyCtx?.notify("Rekod Berhasil Disimpan!", "success");
     onBack();
@@ -59,13 +60,11 @@ const ActivityRecordScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
         {step === 1 && (
           <div className="space-y-6 animate-in slide-in-from-bottom-5">
-            {/* Filter Box */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white/5 p-6 rounded-[2.5rem] border border-white/10 shadow-xl">
               <select value={selClass} onChange={e => setSelClass(e.target.value)} className="bg-black/40 border border-white/10 p-4 rounded-2xl text-xs uppercase font-bold outline-none focus:border-emerald-500">{['SEMUA', ...studentDataService.getUniqueClasses()].map(c => <option key={c} value={c}>{c}</option>)}</select>
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="CARI NAMA MURID..." className="md:col-span-2 bg-black/40 border border-white/10 p-4 rounded-2xl text-xs uppercase font-bold outline-none focus:border-emerald-500 shadow-inner" />
             </div>
 
-            {/* List Header & Select All */}
             <div className="flex justify-between items-end px-4">
                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{available.length} MURID DIJUMPAI</p>
                <button onClick={handleSelectAll} className="flex items-center gap-2 bg-white/10 hover:bg-emerald-600 px-4 py-2 rounded-xl transition-all border border-white/10">
@@ -74,7 +73,6 @@ const ActivityRecordScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                </button>
             </div>
 
-            {/* Student Grid */}
             <div className="bg-white/5 rounded-[2.5rem] border border-white/10 p-6 grid grid-cols-1 md:grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto no-scrollbar shadow-2xl">
               {available.map(s => {
                 const active = selStudents.some(x => x.id === s.id);
@@ -90,7 +88,6 @@ const ActivityRecordScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               })}
             </div>
 
-            {/* Floating Footer */}
             <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-[92%] max-w-xl bg-emerald-600 p-5 rounded-[2.5rem] shadow-2xl flex justify-between items-center z-50">
               <div className="ml-4"><p className="text-[10px] font-black text-emerald-100 uppercase leading-none">Terpilih</p><p className="text-3xl font-['Teko'] font-bold uppercase leading-none">{selStudents.length} MURID</p></div>
               <button onClick={() => setStep(2)} disabled={selStudents.length===0} className="bg-white text-emerald-600 px-10 py-4 rounded-2xl font-black text-[11px] uppercase shadow-xl hover:scale-105 transition-all disabled:opacity-50">Seterusnya <ChevronRight size={16} className="inline ml-1"/></button>
@@ -104,7 +101,8 @@ const ActivityRecordScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Tajuk (Auto-Suggest)</label>
-                  <input list="acts" className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-xs font-bold uppercase outline-none focus:border-emerald-500 shadow-inner" value={activity.title} onChange={e => setActivity({...activity, title: e.target.value})} />
+                  {/* FIX: Bind to programName */}
+                  <input list="acts" className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-xs font-bold uppercase outline-none focus:border-emerald-500 shadow-inner" value={activity.programName} onChange={e => setActivity({...activity, programName: e.target.value})} />
                   <datalist id="acts">{studentDataService.suggestions.map(s => <option key={s} value={s} />)}</datalist>
                 </div>
                 <div className="space-y-1">
