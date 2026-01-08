@@ -1,6 +1,7 @@
 import React, { useState, createContext, useEffect } from 'react';
 import { LayoutDashboard, ClipboardEdit, BarChart3, Database, Award, LogOut, Zap, Menu, Calendar, Medal, X, CheckCircle2, AlertCircle } from 'lucide-react';
 
+// Import Screen Asal Bohh
 import LoginScreen from './components/LoginScreen';
 import AdminPanelScreen from './components/AdminPanelScreen';
 import ActivityRecordScreen from './components/ActivityRecordScreen';
@@ -11,6 +12,9 @@ import TakwimScreen from './components/TakwimScreen';
 import DashboardScreen from './components/DashboardScreen';
 import SportsScreen from './components/SportsScreen';
 
+// 1. IMPORT AWANG (PASTIKAN FAIL NI ADA DALAM components)
+import AwangAssistant from './components/AwangAssistant';
+
 export const NotifyContext = createContext<any>(null);
 
 const App: React.FC = () => {
@@ -19,34 +23,36 @@ const App: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
 
-  // AUTO-SCROLL KE ATAS SETIAP KALI TUKAR SKRIN
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [currentScreen]);
 
-  const notify = (msg: string, type: 'success' | 'error' | 'info') => {
+  const notify = (msg: string, type: 'success' | 'error' | 'info' | 'loading') => {
     const id = Math.random().toString(36).substring(2, 11);
     setNotifications(prev => [...prev, { id, msg, type }]);
-    setTimeout(() => setNotifications(prev => prev.filter(n => n.id !== id)), 4000);
+    if (type !== 'loading') {
+      setTimeout(() => removeNotify(id), 4000);
+    }
     return id;
+  };
+
+  const removeNotify = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
   if (!userRole) {
     return (
-      <NotifyContext.Provider value={{ notify }}>
+      <NotifyContext.Provider value={{ notify, removeNotify }}>
         <LoginScreen onLogin={setUserRole} isDarkMode={true} toggleTheme={()=>{}} />
       </NotifyContext.Provider>
     );
   }
 
   return (
-    <NotifyContext.Provider value={{ notify }}>
-      {/* STRUKTUR UTAMA: 
-          Menggunakan min-h-screen (Tinggi Minimum) supaya skrin boleh memanjang ke bawah.
-      */}
+    <NotifyContext.Provider value={{ notify, removeNotify }}>
       <div className="flex min-h-screen bg-[#020617] text-white font-['Manrope'] relative">
         
-        {/* SIDEBAR NAVIGATION */}
+        {/* SIDEBAR NAVIGATION (Kekal Macam Dulu) */}
         <aside className={`fixed inset-y-0 left-0 z-[100] w-72 bg-[#01040a]/95 backdrop-blur-xl border-r border-white/5 transform transition-transform duration-500 lg:translate-x-0 lg:static lg:block ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className="flex flex-col h-full p-8">
             <div className="mb-12 flex justify-between items-center">
@@ -89,17 +95,15 @@ const App: React.FC = () => {
           </div>
         </aside>
 
-        {/* KAWASAN KANDUNGAN UTAMA (MAIN) */}
+        {/* KAWASAN KANDUNGAN UTAMA */}
         <main className="flex-1 flex flex-col min-w-0 bg-[#020617] relative">
           
-          {/* HEADER UNTUK MOBILE */}
           <header className="lg:hidden sticky top-0 z-[90] p-5 border-b border-white/5 flex items-center justify-between bg-[#01040a]/80 backdrop-blur-md">
             <button className="p-2 bg-white/5 rounded-xl text-blue-500" onClick={() => setIsMobileMenuOpen(true)}><Menu size={22}/></button>
             <h1 className="text-3xl font-['Teko'] font-bold text-white uppercase tracking-tighter italic">RAK <span className="text-blue-500">SKeMe</span></h1>
             <div className="w-10"></div>
           </header>
 
-          {/* PAGE WRAPPER: Bahagian ini kini membenarkan scroll secara semulajadi */}
           <div className="flex-1 w-full relative">
             <div className="page-transition w-full min-h-full pb-24 lg:pb-10">
               {currentScreen === 'DASHBOARD' && <DashboardScreen onNavigate={setCurrentScreen} userRole={userRole} />}
@@ -113,14 +117,17 @@ const App: React.FC = () => {
             </div>
           </div>
 
+          {/* 3. AWANG AI SENTIASA ADA KAT PENJURU (Floating) */}
+          <AwangAssistant />
+
           {/* SISTEM NOTIFIKASI */}
           <div className="fixed top-6 right-6 z-[9999] space-y-3 pointer-events-none">
             {notifications.map(n => (
               <div key={n.id} className={`bg-[#0f172a]/95 backdrop-blur-xl border border-white/10 text-white px-6 py-5 rounded-[1.5rem] shadow-2xl flex items-center gap-4 animate-in slide-in-from-right fade-in duration-500 pointer-events-auto max-w-sm border-l-4 ${n.type === 'success' ? 'border-l-emerald-500' : n.type === 'error' ? 'border-l-rose-500' : 'border-l-blue-500'}`}>
-                 <div className={`p-2 rounded-lg ${n.type === 'success' ? 'bg-emerald-500/10 text-emerald-500' : n.type === 'error' ? 'bg-rose-500/10 text-rose-500' : 'bg-blue-500/10 text-blue-500'}`}>
-                   {n.type === 'success' ? <CheckCircle2 size={16}/> : <AlertCircle size={16}/>}
-                 </div>
-                 <p className="text-[11px] font-bold uppercase tracking-wider leading-tight">{n.msg}</p>
+                  <div className={`p-2 rounded-lg ${n.type === 'success' ? 'bg-emerald-500/10 text-emerald-500' : n.type === 'error' ? 'bg-rose-500/10 text-rose-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                    {n.type === 'success' ? <CheckCircle2 size={16}/> : <AlertCircle size={16}/>}
+                  </div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider leading-tight">{n.msg}</p>
               </div>
             ))}
           </div>

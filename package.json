@@ -13,6 +13,7 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "chart.js": "^4.5.1",
     "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
