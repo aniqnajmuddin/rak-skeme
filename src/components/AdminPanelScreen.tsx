@@ -1,219 +1,302 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { studentDataService } from '../services/studentDataService';
 import { NotifyContext } from '../App';
+import { toPng } from 'html-to-image';
 import { 
-  Database, FileUp, ArrowLeft, Megaphone, Trash, Settings, 
-  Search, Filter, PlusCircle, Sparkles, Users, Edit3, ChevronRight 
+  ArrowLeft, Megaphone, Settings, PlusCircle, Sparkles, Trash, 
+  Database, Download, AlertTriangle, Image as ImageIcon, Wand2, Type, 
+  MessageCircle, ShieldCheck, BarChart3, LayoutDashboard,
+  Zap, Palette, Tent, Moon, Gift, Coffee, Lock, Unlock, Cpu, Globe, 
+  Share2, CheckCircle2 
 } from 'lucide-react';
 
 const AdminPanelScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const notifyCtx = useContext(NotifyContext);
-  const [activeModule, setActiveModule] = useState<'DATA' | 'BULLETIN' | 'SETTINGS'>('DATA');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [students, setStudents] = useState<any[]>([]);
-  const [classes, setClasses] = useState<string[]>([]);
-  const [selectedClass, setSelectedClass] = useState<string>('SEMUA');
+  const [activeModule, setActiveModule] = useState<'BULLETIN' | 'CONFIG' | 'SYSTEM'>('BULLETIN');
   const [bulletin, setBulletin] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [posterTheme, setPosterTheme] = useState('cyber');
+  const [posterFont, setPosterFont] = useState('font-["Teko"]');
+  const [fontSize, setFontSize] = useState(24);
+  const [currentMood, setCurrentMood] = useState('NORMAL');
+  const [regOpen, setRegOpen] = useState(true);
+  const [reportOpen, setReportOpen] = useState(true);
+  const [localSuggestions, setLocalSuggestions] = useState<string[]>([]);
+  const posterRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { 
-    refreshData(); 
+    window.scrollTo(0, 0);
     const savedMsg = localStorage.getItem('RAK_ANNOUNCEMENT');
     if (savedMsg) setBulletin(savedMsg);
+    const savedMood = localStorage.getItem('RAK_SYSTEM_MOOD');
+    if (savedMood) setCurrentMood(savedMood);
+    setRegOpen(localStorage.getItem('RAK_REG_STATUS') !== 'CLOSED');
+    setReportOpen(localStorage.getItem('RAK_REPORT_STATUS') !== 'CLOSED');
+    setLocalSuggestions(studentDataService.suggestions);
   }, []);
 
-  const refreshData = () => {
-    const allStudents = studentDataService.getAllStudents() || [];
-    // Tapis supaya tak tunjuk dummy penanda kelas dalam senarai admin
-    setStudents(allStudents.filter((s: any) => s.name !== 'SISTEM: PENANDA KELAS'));
-    setClasses(['SEMUA', ...studentDataService.getUniqueClasses()]);
+  const toggleStatus = (type: 'REG' | 'REPORT') => {
+    const key = type === 'REG' ? 'RAK_REG_STATUS' : 'RAK_REPORT_STATUS';
+    const current = type === 'REG' ? regOpen : reportOpen;
+    const newState = !current ? 'OPEN' : 'CLOSED';
+    if (type === 'REG') setRegOpen(!current); else setReportOpen(!current);
+    localStorage.setItem(key, newState);
+    notifyCtx?.notify(`${type === 'REG' ? 'Pendaftaran' : 'Laporan'}: ${newState}`, "info");
   };
 
-  // --- PEMBAIKAN HANDLE IMPORT (ASYNC & STABLE) ---
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const loadId = notifyCtx?.notify("Intelligence Hunter sedang mengimbas fail...", "loading");
-    
+  const downloadPoster = async () => {
+    if (!posterRef.current) return;
+    const loadId = notifyCtx?.notify("Melakar Grafik HD...", "loading");
     try {
-      // Pastikan parseFile dalam service adalah async
-      const res = await studentDataService.parseFile(file);
-      
-      if (res && res.length > 0) {
-        studentDataService.bulkAddStudents(res);
-        notifyCtx?.notify(`Misi Berjaya! ${res.length} murid diserap ke database.`, "success");
-        refreshData();
-      } else {
-        notifyCtx?.notify("Fail dikesan tapi tiada data murid yang sah.", "error");
-      }
-    } catch (err) { 
-      console.error(err);
-      notifyCtx?.notify("Ralat fail! Pastikan format betul (Nama, IC, Kelas).", "error"); 
-    } finally { 
-      // Reset input supaya boleh upload fail yang sama jika perlu
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      // Tutup loading notification jika ada fungsi dismiss
-      if (loadId && notifyCtx?.dismiss) notifyCtx.dismiss(loadId);
+      const dataUrl = await toPng(posterRef.current, { cacheBust: true, pixelRatio: 4 });
+      const link = document.createElement('a');
+      link.download = `POSTER_SKM_${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+      if(loadId) notifyCtx?.removeNotify(loadId);
+      notifyCtx?.notify("Imej HD Berjaya!", "success");
+    } catch (err) {
+      if(loadId) notifyCtx?.removeNotify(loadId);
+      notifyCtx?.notify("Ralat grafik.", "error");
     }
   };
 
-  const filteredStudents = students.filter(s => {
-    const name = String(s.name || '').toUpperCase();
-    const ic = String(s.icNumber || '');
-    const matchSearch = name.includes(searchTerm.toUpperCase()) || ic.includes(searchTerm);
-    const matchClass = selectedClass === 'SEMUA' || s.className === selectedClass;
-    return matchSearch && matchClass;
-  });
+  const shareToWhatsApp = async () => {
+    if (!posterRef.current) return;
+    const loadId = notifyCtx?.notify("Menyiapkan Gambar & WhatsApp...", "loading");
+    try {
+      const dataUrl = await toPng(posterRef.current, { cacheBust: true, pixelRatio: 4 });
+      const link = document.createElement('a');
+      link.download = `HEBAHAN_SKM_${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+      const waText = `*HEBAHAN RASMI UNIT KOKURIKULUM SKM*\n\n${bulletin}\n\n_Sila sertakan imej yang dimuat turun._`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(waText)}`, '_blank');
+      if(loadId) notifyCtx?.removeNotify(loadId);
+      notifyCtx?.notify("Imej sedia dipilh dalam WhatsApp!", "success");
+    } catch (err) {
+      if(loadId) notifyCtx?.removeNotify(loadId);
+      notifyCtx?.notify("Ralat WhatsApp.", "error");
+    }
+  };
+
+  const handleRemoveSuggestion = (s: string) => {
+    const updated = localSuggestions.filter(item => item !== s);
+    setLocalSuggestions(updated);
+    studentDataService.removeSuggestion(s);
+    notifyCtx?.notify("Kamus dikemaskini", "info");
+  };
+
+  const themes: any = {
+    cyber: { bg: 'bg-slate-950', accent: 'text-blue-400', border: 'border-blue-500/30', gradient: 'from-blue-600/20 to-indigo-900/40', glow: 'bg-blue-500/20' },
+    emerald: { bg: 'bg-slate-900', accent: 'text-emerald-400', border: 'border-emerald-500/30', gradient: 'from-emerald-600/20 to-teal-900/40', glow: 'bg-emerald-500/20' },
+    gold: { bg: 'bg-stone-950', accent: 'text-amber-400', border: 'border-amber-500/30', gradient: 'from-amber-600/20 to-orange-900/40', glow: 'bg-amber-500/20' },
+    rose: { bg: 'bg-zinc-950', accent: 'text-rose-400', border: 'border-rose-500/30', gradient: 'from-rose-600/20 to-purple-900/40', glow: 'bg-rose-500/20' }
+  };
+
+  const t = themes[posterTheme] || themes.cyber;
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white p-4 lg:p-10 pb-32 font-['Manrope']">
-      <div className="max-w-7xl mx-auto">
+    <div className="w-full min-h-screen bg-[#020617] text-white font-['Manrope'] pb-40 overflow-y-auto">
+      <div className="max-w-7xl mx-auto p-4 md:p-10 space-y-10">
         
-        {/* HEADER UTAMA */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-          <div className="flex items-center gap-4">
-            <button onClick={onBack} className="p-3 bg-white/5 rounded-xl text-blue-500 border border-white/10 hover:bg-blue-600 hover:text-white transition-all shadow-lg">
-              <ArrowLeft size={24}/>
+        {/* HEADER */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 animate-in fade-in duration-700">
+          <div className="flex items-center gap-6">
+            <button onClick={onBack} className="p-4 bg-white/5 rounded-3xl text-blue-500 border border-white/10 hover:bg-blue-600 transition-all active:scale-90">
+              <ArrowLeft size={28}/>
             </button>
             <div>
-              <h1 className="text-5xl font-['Teko'] font-bold uppercase italic tracking-tight leading-none text-white">ADMIN <span className="text-emerald-500">CONTROL</span></h1>
-              <p className="text-[10px] font-black text-slate-500 tracking-[0.3em] uppercase mt-1 italic tracking-tighter">Pusat Penyelenggaraan SK Menerong</p>
+              <h1 className="text-6xl md:text-8xl font-['Teko'] font-bold uppercase leading-none tracking-tighter italic">ADMIN <span className="text-blue-600">HQ</span></h1>
+              <p className="text-[10px] font-black text-slate-500 tracking-[0.4em] uppercase mt-2 italic flex items-center gap-2">
+                <ShieldCheck size={12} className="text-emerald-500 animate-pulse"/> SKeMe Commander HQ
+              </p>
             </div>
           </div>
-          <div className="flex bg-white/5 p-1.5 rounded-[1.5rem] border border-white/10 shadow-inner overflow-hidden">
+
+          <div className="flex bg-white/5 p-2 rounded-3xl border border-white/5 backdrop-blur-3xl overflow-x-auto no-scrollbar shadow-2xl">
             {[
-              {id: 'DATA', icon: Database, label: 'Database'},
-              {id: 'BULLETIN', icon: Megaphone, label: 'Hebahan'},
-              {id: 'SETTINGS', icon: Settings, label: 'Sistem'}
+              { id: 'BULLETIN', icon: Globe, label: 'Broadcast' },
+              { id: 'CONFIG', icon: Cpu, label: 'Kamus' },
+              { id: 'SYSTEM', icon: Settings, label: 'Kernel' }
             ].map((tab: any) => (
-              <button 
-                key={tab.id} 
-                onClick={() => setActiveModule(tab.id)} 
-                className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 transition-all ${activeModule === tab.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-              >
+              <button key={tab.id} onClick={() => setActiveModule(tab.id)} className={`px-8 py-4 rounded-2xl text-[10px] font-black uppercase flex items-center gap-3 transition-all shrink-0 ${activeModule === tab.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>
                 <tab.icon size={16}/> {tab.label}
               </button>
             ))}
           </div>
         </div>
 
-        {/* 1. MODUL DATABASE MURID */}
-        {activeModule === 'DATA' && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 animate-in fade-in duration-500">
+        {/* STATUS BAR */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-in slide-in-from-bottom-4 duration-700">
+          <div className="bg-white/5 border border-white/10 p-6 rounded-[2rem]">
+            <Database size={16} className="text-blue-500 mb-3" />
+            <p className="text-3xl font-['Teko'] font-bold leading-none">{studentDataService.getAllStudents().length} <span className="text-[10px] opacity-30 tracking-widest">MURID</span></p>
+          </div>
+          <div className="bg-white/5 border border-white/10 p-6 rounded-[2rem]">
+            <BarChart3 size={16} className="text-emerald-500 mb-3" />
+            <p className="text-3xl font-['Teko'] font-bold leading-none">{studentDataService.activityRecords.length} <span className="text-[10px] opacity-30 tracking-widest">REKOD</span></p>
+          </div>
+          <button onClick={() => toggleStatus('REG')} className={`p-6 rounded-[2rem] border transition-all flex items-center justify-between group ${regOpen ? 'bg-emerald-600/10 border-emerald-500 text-emerald-500' : 'bg-rose-600/10 border-rose-500 text-rose-500'}`}>
+            <span className="text-[10px] font-black uppercase tracking-widest">Pendaftaran</span>
+            {regOpen ? <Unlock size={20}/> : <Lock size={20}/>}
+          </button>
+          <button onClick={() => toggleStatus('REPORT')} className={`p-6 rounded-[2rem] border transition-all flex items-center justify-between group ${reportOpen ? 'bg-blue-600/10 border-blue-500 text-blue-500' : 'bg-rose-600/10 border-rose-500 text-rose-500'}`}>
+            <span className="text-[10px] font-black uppercase tracking-widest">Laporan GURU</span>
+            {reportOpen ? <CheckCircle2 size={20}/> : <AlertTriangle size={20}/>}
+          </button>
+        </div>
+
+        {activeModule === 'BULLETIN' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 animate-in fade-in duration-700">
             <div className="space-y-6">
-              <div onClick={() => fileInputRef.current?.click()} className="bg-emerald-500/5 border-2 border-dashed border-emerald-500/20 p-10 rounded-[2.5rem] text-center cursor-pointer hover:bg-emerald-500/10 transition-all group shadow-2xl">
-                <FileUp className="mx-auto text-emerald-500 mb-4 group-hover:scale-110 transition-transform" size={40}/>
-                <span className="text-[11px] font-black uppercase text-emerald-500 tracking-widest block">Master Import</span>
-                <p className="text-[8px] text-slate-500 mt-2 uppercase">Klik untuk upload CSV / XLSX</p>
-                <input type="file" ref={fileInputRef} onChange={handleImport} className="hidden" accept=".xlsx,.csv" />
-              </div>
-              <div className="bg-white/5 p-6 rounded-[2.5rem] border border-white/10 shadow-xl">
-                <h3 className="text-[10px] font-black uppercase text-slate-500 mb-6 flex items-center gap-2 tracking-widest border-b border-white/5 pb-4"><Filter size={14}/> Filter Kelas</h3>
-                <div className="space-y-2 max-h-64 overflow-y-auto no-scrollbar pr-2">
-                  {classes.map(c => (
-                    <button key={c} onClick={() => setSelectedClass(c)} className={`w-full text-left px-5 py-4 rounded-2xl text-[10px] font-black uppercase transition-all flex justify-between items-center ${selectedClass === c ? 'bg-blue-600 text-white shadow-lg' : 'bg-white/5 text-slate-500 hover:bg-white/10'}`}>
-                      {c} <ChevronRight size={14} className={selectedClass === c ? 'opacity-100' : 'opacity-0'}/>
+              
+              <div className="bg-white/5 p-8 rounded-[3rem] border border-white/10 shadow-2xl">
+                <h3 className="text-2xl font-['Teko'] font-bold text-white uppercase mb-6 flex items-center gap-3">
+                  <Palette className="text-purple-500" /> Atmosphere Control
+                </h3>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {[
+                    { id: 'NORMAL', icon: Zap, color: 'bg-blue-600' },
+                    { id: 'SUKAN', icon: BarChart3, color: 'bg-rose-600' },
+                    { id: 'KEM', icon: Tent, color: 'bg-emerald-700' },
+                    { id: 'RAMADAN', icon: Moon, color: 'bg-indigo-900' },
+                    { id: 'RAYA', icon: Gift, color: 'bg-green-600' },
+                    { id: 'CUTI', icon: Coffee, color: 'bg-orange-500' },
+                  ].map(m => (
+                    <button key={m.id} onClick={() => { setCurrentMood(m.id); localStorage.setItem('RAK_SYSTEM_MOOD', m.id); notifyCtx?.notify(`Vibe: ${m.id}`, "info"); }} className={`flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all ${currentMood === m.id ? 'border-white bg-white/10 scale-105 shadow-xl' : 'border-white/5 opacity-40 hover:opacity-100'}`}>
+                      <div className={`p-2 rounded-lg ${m.color}`}><m.icon size={12}/></div>
+                      <span className="text-[7px] font-black">{m.id}</span>
                     </button>
                   ))}
                 </div>
               </div>
-            </div>
-            <div className="lg:col-span-3 bg-white/5 p-8 rounded-[3rem] border border-white/10 shadow-2xl">
-              <div className="relative mb-8">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-600" size={20}/>
-                <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="CARI NAMA / KAD PENGENALAN..." className="w-full bg-slate-900/50 border border-white/10 rounded-[1.5rem] py-5 pl-14 pr-6 text-[11px] font-bold uppercase outline-none focus:border-blue-500 transition-all shadow-inner" />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[55vh] overflow-y-auto no-scrollbar pr-3">
-                {filteredStudents.length > 0 ? filteredStudents.map(s => (
-                  <div key={s.id} className="bg-white/5 p-5 rounded-3xl border border-white/5 flex items-center justify-between group hover:bg-white/10 transition-all">
-                    <div className="flex items-center gap-4 truncate">
-                      <div className="w-12 h-12 bg-blue-600/10 rounded-2xl flex items-center justify-center font-black text-blue-500 shrink-0 border border-blue-500/20">{s.name?.charAt(0)}</div>
-                      <div className="truncate">
-                        <div className="text-[11px] font-black uppercase text-white truncate">{s.name}</div>
-                        <div className="text-[9px] font-bold text-slate-500 mt-1 uppercase">{s.icNumber} | {s.className}</div>
+
+              <div className="bg-white/5 p-8 rounded-[3rem] border border-white/10 shadow-2xl">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-3xl font-['Teko'] font-bold text-white uppercase flex items-center gap-3"><Type className="text-blue-500" /> Poster Engine</h3>
+                  <button onClick={() => setBulletin("MAKLUMAN: PROGRAM KOKURIKULUM MINGGU INI DIJALANKAN MENGIKUT JADUAL.")} className="p-3 bg-blue-600/10 text-blue-500 rounded-xl hover:bg-blue-600 transition-all"><Wand2 size={20}/></button>
+                </div>
+                <textarea value={bulletin} onChange={e => setBulletin(e.target.value.toUpperCase())} className="w-full h-32 bg-black/40 border border-white/5 rounded-2xl p-6 text-xs font-bold text-white outline-none mb-6 resize-none focus:border-blue-500/50" placeholder="MASUKKAN TEKS..." />
+                
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Saiz Font: {fontSize}px</span>
+                      <input type="range" min="14" max="48" value={fontSize} onChange={(e)=>setFontSize(parseInt(e.target.value))} className="w-full accent-blue-600 h-1.5 bg-white/10 rounded-lg cursor-pointer" />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Pilihan Warna Tema</span>
+                      <div className="flex gap-2">
+                        {Object.keys(themes).map(colorKey => (
+                          <button key={colorKey} onClick={() => setPosterTheme(colorKey)} className={`w-8 h-8 rounded-full border-2 transition-all ${posterTheme === colorKey ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-50'} bg-${colorKey === 'gold' ? 'amber-500' : colorKey === 'rose' ? 'rose-600' : colorKey === 'emerald' ? 'emerald-500' : 'blue-600'}`} />
+                        ))}
                       </div>
                     </div>
-                    <button onClick={() => { if(window.confirm(`Padam data ${s.name}?`)) { studentDataService.deleteStudent(s.id); refreshData(); notifyCtx?.notify("Murid dipadam.", "info"); } }} className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-700 hover:text-red-500 transition-all"><Trash size={18}/></button>
                   </div>
-                )) : (
-                  <div className="col-span-full py-20 text-center opacity-20 uppercase font-black tracking-[0.5em] text-xs">Tiada Data Dijumpai</div>
-                )}
+
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { id: 'font-["Teko"]', label: 'TACTICAL' },
+                      { id: 'font-mono', label: 'SECRET TYPEWRITER' },
+                      { id: 'font-["Manrope"]', label: 'CLEAN' }
+                    ].map(f => (
+                      <button key={f.id} onClick={()=>setPosterFont(f.id)} className={`px-4 py-2 rounded-xl text-[9px] font-black border transition-all ${posterFont === f.id ? 'bg-white text-black' : 'border-white/10 text-slate-500'}`}>{f.label}</button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <button onClick={downloadPoster} className="py-4 bg-white/5 border border-white/10 rounded-2xl text-[9px] font-black uppercase flex items-center justify-center gap-2 hover:bg-white/10 transition-all"><ImageIcon size={16}/> PNG</button>
+                    <button onClick={shareToWhatsApp} className="py-4 bg-emerald-600 rounded-2xl text-[9px] font-black uppercase flex items-center justify-center gap-2 hover:bg-emerald-500 transition-all shadow-lg"><MessageCircle size={16}/> WA</button>
+                    <button onClick={() => { localStorage.setItem('RAK_ANNOUNCEMENT', bulletin); notifyCtx?.notify("Hebahan Live!", "success"); }} className="py-4 bg-blue-600 rounded-2xl text-[9px] font-black uppercase flex items-center justify-center gap-2 shadow-xl hover:bg-blue-500 transition-all"><Share2 size={16}/> LIVE</button>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* 2. MODUL HEBAHAN */}
-        {activeModule === 'BULLETIN' && (
-          <div className="max-w-2xl mx-auto w-full animate-in zoom-in-95 duration-500">
-            <div className="bg-white/5 p-10 rounded-[3.5rem] border border-white/10 shadow-2xl relative overflow-hidden">
-              <Megaphone className="absolute -right-10 -bottom-10 text-white/5 rotate-12" size={240} />
-              <div className="relative z-10 text-center">
-                <h3 className="text-3xl font-['Teko'] font-bold text-white uppercase mb-8 flex items-center justify-center gap-4 border-b border-white/5 pb-6">
-                  <Megaphone size={28} className="text-blue-500"/> Hebahan Dashboard
-                </h3>
-                <textarea 
-                  value={bulletin} 
-                  onChange={e => setBulletin(e.target.value.toUpperCase())} 
-                  className="w-full h-40 bg-slate-900/50 border border-white/10 rounded-3xl p-6 text-[11px] font-bold text-white outline-none focus:border-blue-500 transition-all resize-none shadow-inner text-center" 
-                  placeholder="TULIS MAKLUMAN DI SINI..."
-                />
-                <button onClick={() => { localStorage.setItem('RAK_ANNOUNCEMENT', bulletin); notifyCtx?.notify("Hebahan dikemaskini!", "success"); }} className="w-full mt-8 py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-[1.5rem] text-[11px] font-black uppercase tracking-[0.2em] shadow-xl transition-all">Sync Hebahan Sekarang</button>
-              </div>
-            </div>
-          </div>
-        )}
+            {/* LIVE PREVIEW (ANIMATED) */}
+            <div className="flex flex-col items-center">
+                <div 
+                  ref={posterRef} 
+                  className={`w-full max-w-[380px] aspect-[4/5] ${t.bg} rounded-[3.5rem] p-12 flex flex-col items-center text-center shadow-2xl relative overflow-hidden border ${t.border}`}
+                >
+                    <div className="absolute top-6 left-6 w-8 h-8 border-t-2 border-l-2 border-white/20 rounded-tl-xl animate-pulse" />
+                    <div className="absolute top-6 right-6 w-8 h-8 border-t-2 border-r-2 border-white/20 rounded-tr-xl animate-pulse" />
+                    <div className="absolute bottom-6 left-6 w-8 h-8 border-b-2 border-l-2 border-white/20 rounded-bl-xl animate-pulse" />
+                    <div className="absolute bottom-6 right-6 w-8 h-8 border-b-2 border-r-2 border-white/20 rounded-br-xl animate-pulse" />
+                    
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/[0.05] to-transparent h-32 w-full animate-scan pointer-events-none" />
+                    <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 ${t.glow} rounded-full blur-[100px] animate-pulse-slow pointer-events-none`} />
 
-        {/* 3. MODUL SISTEM */}
-        {activeModule === 'SETTINGS' && (
-          <div className="max-w-5xl mx-auto w-full animate-in slide-in-from-right-5 duration-500 space-y-10 pb-20">
-            <div className="bg-white/5 p-8 rounded-[3rem] border border-white/10 shadow-2xl">
-              <h3 className="text-3xl font-['Teko'] font-bold text-white uppercase mb-6 flex items-center gap-4 border-b border-white/5 pb-4">
-                <Settings size={28} className="text-blue-500"/> Urus Senarai Kelas
-              </h3>
-              <div className="flex flex-col md:flex-row gap-3 mb-8">
-                <input id="newClassName" placeholder="NAMA KELAS BARU (CTH: 6 ANGGERIK)..." className="flex-1 bg-slate-900/50 border border-white/10 rounded-2xl px-6 py-4 text-[11px] font-black uppercase outline-none focus:border-blue-500" />
-                <button onClick={() => {
-                  const el = document.getElementById('newClassName') as HTMLInputElement;
-                  if(el.value) { studentDataService.addManualClass(el.value); el.value=''; refreshData(); notifyCtx?.notify("Kelas dicipta!", "success"); }
-                }} className="bg-blue-600 hover:bg-blue-500 px-8 py-4 rounded-2xl text-[11px] font-black uppercase flex items-center gap-2 shadow-lg"><PlusCircle size={18}/> Tambah</button>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {studentDataService.getUniqueClasses().map(c => (
-                  <div key={c} className="bg-white/5 p-4 rounded-2xl border border-white/5 flex items-center justify-between group">
-                    <span className="text-[10px] font-black text-slate-300 uppercase truncate">{c}</span>
-                    <div className="flex gap-1">
-                      <button onClick={() => {const n = prompt("Tukar "+c+" kepada:"); if(n){studentDataService.updateClassName(c,n); refreshData(); notifyCtx?.notify("Kelas dikemaskini!", "info");}}} className="p-2 text-blue-500 hover:bg-blue-500/10 rounded-lg"><Edit3 size={14}/></button>
-                      <button onClick={() => {if(window.confirm("Padam kelas "+c+"? Murid dalam kelas ini akan kekal tanpa kelas.")){studentDataService.deleteClassName(c); refreshData(); notifyCtx?.notify("Kelas dipadam.", "info");}}} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg"><Trash size={14}/></button>
+                    <div className="relative z-10 w-full mb-6">
+                        <div className="bg-white text-black px-4 py-1.5 rounded-full text-[8px] font-black tracking-[0.4em] inline-block mb-6 shadow-xl animate-bounce-slow">RASMI</div>
+                        <h2 className="text-white text-5xl font-['Teko'] font-bold leading-[0.8] uppercase tracking-tighter">SK MENERONG</h2>
+                        <p className={`text-[11px] font-black uppercase tracking-[0.4em] mt-1 ${t.accent} opacity-90 font-['Manrope']`}>Unit Kokurikulum</p>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="bg-white/5 p-8 rounded-[3rem] border border-white/10 shadow-2xl">
-              <h3 className="text-3xl font-['Teko'] font-bold text-white uppercase mb-6 flex items-center gap-4 border-b border-white/5 pb-4">
-                <Sparkles size={28} className="text-emerald-500"/> Kamus Suggestion Program
-              </h3>
-              <div className="flex flex-col md:flex-row gap-3 mb-8">
-                <input id="newSuggestName" placeholder="NAMA AKTIVITI CADANGAN..." className="flex-1 bg-slate-900/50 border border-white/10 rounded-2xl px-6 py-4 text-[11px] font-black uppercase outline-none focus:border-emerald-500" />
-                <button onClick={() => {
-                  const el = document.getElementById('newSuggestName') as HTMLInputElement;
-                  if(el.value) { studentDataService.addSuggestion(el.value); el.value=''; refreshData(); notifyCtx?.notify("Kamus dikemaskini!", "success"); }
-                }} className="bg-emerald-600 hover:bg-emerald-500 px-8 py-4 rounded-2xl text-[11px] font-black uppercase flex items-center gap-2 shadow-lg"><PlusCircle size={18}/> Simpan</button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {studentDataService.suggestions.map((s: string) => (
-                  <div key={s} className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl flex items-center gap-3">
-                    <span className="text-[9px] font-black text-emerald-500 uppercase">{s}</span>
-                  </div>
-                ))}
-              </div>
+
+                    <div className="relative z-10 w-full flex-1 flex items-center justify-center px-4">
+                        <p style={{ fontSize: `${fontSize}px` }} className={`text-white font-bold uppercase leading-tight tracking-wide drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)] italic ${posterFont} transition-all`}>
+                            {bulletin || 'SILA MASUKKAN DATA...'}
+                        </p>
+                    </div>
+
+                    <div className="relative z-10 w-full pt-6 border-t border-white/10 text-white/30 text-[9px] font-black uppercase tracking-[0.2em] font-mono">
+                      INTEL BROADCAST • {new Date().toLocaleDateString('ms-MY', { day:'numeric', month:'long', year:'numeric' }).toUpperCase()}
+                    </div>
+                </div>
+                <div className="mt-4 flex items-center gap-3 opacity-50">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" />
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">Encrypted Intelligence Preview</p>
+                </div>
             </div>
           </div>
+        )}
+
+        {activeModule === 'CONFIG' && (
+           <div className="bg-white/5 p-10 rounded-[3.5rem] border border-white/10 animate-in slide-in-from-right-10 duration-500">
+              <h3 className="text-3xl font-['Teko'] font-bold uppercase mb-8 flex items-center gap-3 tracking-widest text-amber-500"><Sparkles size={24}/> Logic Library</h3>
+              <div className="flex flex-col sm:flex-row gap-3 mb-10">
+                <input id="newSug" placeholder="AKTIVITI BARU..." className="flex-1 bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-[11px] font-black uppercase outline-none focus:border-amber-500" />
+                <button onClick={() => {
+                  const el = document.getElementById('newSug') as HTMLInputElement;
+                  if(el.value) { studentDataService.addSuggestion(el.value); setLocalSuggestions([...studentDataService.suggestions]); el.value=''; notifyCtx?.notify("Kamus ditambah!", "success"); }
+                }} className="bg-amber-600 hover:bg-amber-500 px-10 py-5 rounded-2xl text-[11px] font-black uppercase shadow-lg transition-all">Tambah Data</button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {localSuggestions.map((s: string) => (
+                  <div key={s} className="bg-white/5 border border-white/5 p-5 rounded-2xl flex items-center justify-between group hover:bg-rose-600/10 transition-all">
+                    <span className="text-[10px] font-bold text-slate-300 uppercase truncate pr-4">{s}</span>
+                    <button onClick={() => handleRemoveSuggestion(s)} className="text-slate-600 hover:text-rose-500 transition-colors"><Trash size={16}/></button>
+                  </div>
+                ))}
+              </div>
+           </div>
+        )}
+
+        {activeModule === 'SYSTEM' && (
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in zoom-in-95 duration-500">
+              <div className="bg-white/5 p-10 rounded-[3.5rem] border border-white/10">
+                <h3 className="text-3xl font-['Teko'] font-bold uppercase mb-4 text-emerald-500 flex items-center gap-3 tracking-widest"><Database size={24} /> Backup Kernel</h3>
+                <button onClick={() => {
+                  const d = localStorage.getItem('RAK_MASTER_DB');
+                  if(d){const blob=new Blob([d],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`BACKUP_INTEL.json`; a.click(); notifyCtx?.notify("Export Berjaya!", "success");}
+                }} className="w-full py-6 bg-emerald-600 hover:bg-emerald-500 rounded-3xl text-[11px] font-black uppercase shadow-xl transition-all">Export .JSON</button>
+              </div>
+              <div className="bg-rose-600/5 p-10 rounded-[3.5rem] border border-rose-500/10">
+                <h3 className="text-3xl font-['Teko'] font-bold uppercase mb-4 text-rose-500 flex items-center gap-3 tracking-widest"><AlertTriangle size={24} /> Reset Kernel</h3>
+                <button onClick={() => { if(window.confirm("RESET SEMUA?")){localStorage.clear(); window.location.reload();} }} className="w-full py-6 bg-rose-600 hover:bg-rose-500 rounded-3xl text-[11px] font-black uppercase shadow-xl transition-all">Format HQ</button>
+              </div>
+           </div>
         )}
       </div>
+
+      <style>{`
+        @keyframes scan { 0% { transform: translateY(-150%); } 100% { transform: translateY(300%); } }
+        @keyframes pulse-slow { 0%, 100% { opacity: 0.2; transform: translate(-50%, -50%) scale(1); } 50% { opacity: 0.5; transform: translate(-50%, -50%) scale(1.1); } }
+        @keyframes bounce-slow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        .animate-scan { animation: scan 4s linear infinite; }
+        .animate-pulse-slow { animation: pulse-slow 5s ease-in-out infinite; }
+        .animate-bounce-slow { animation: bounce-slow 3s ease-in-out infinite; }
+      `}</style>
     </div>
   );
 };
