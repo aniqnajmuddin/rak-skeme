@@ -1,94 +1,137 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 
-/**
- * AWANG SKEME PRO - v22.2 (FINAL UNIFIED)
- * Gabungan cara Google Studio + Vite + Vercel Fix
- */
+const MODEL_NAME = "gemini-3-flash-preview"; 
 
-const MODEL_NAME = "gemini-1.5-flash"; // Gunakan nama model yang stabil
+const REPORT_SYSTEM_INSTRUCTION = `
+Anda adalah 'Awang SKeMe', AI pakar pelaporan Kokurikulum KPM.
+Tugas: Menjana kandungan laporan yang PROFESIONAL, KHUSUS dan DATA-DRIVEN SAHAJA.
 
-const getApiKey = (): string => {
-  // 1. Kita cuba ambil cara Google Studio (yang kita jambatankan dalam vite.config)
-  // @ts-ignore
-  let key = (typeof process !== 'undefined' && process.env?.API_KEY) ? process.env.API_KEY : null;
+PERATURAN KERJA TEGAS:
+1. DILARANG SAMA SEKALI memasukkan dialog, ulasan pembantu, atau loghat (Boh, Bereh, Gane) ke dalam output laporan rasmi.
+2. Jika output adalah 'Aktiviti', senaraikan langkah pelaksanaan SAHAJA.
+3. Jika output adalah 'Cadangan', berikan cadangan penambahbaikan SAHAJA.
+4. Jangan mulakan ayat dengan ulasan seperti "Ini adalah cadangan saya...". Terus kepada isi.
+5. Gunakan Bahasa Melayu Baku yang ringkas untuk tahap sekolah rendah.
+`;
 
-  // 2. Kalau tak jumpa, kita cuba cara standard Vite (.env)
-  if (!key) {
-    const meta = import.meta as any;
-    key = meta.env?.VITE_GEMINI_API_KEY;
-  }
-
-  // 3. Kalau tak jumpa jugak, kita cuba suntikan rahsia
-  if (!key) {
-    key = (window as any).__GEMINI_KEY__;
-  }
-
-  console.log("%c--- 🕵️‍♂️ AWANG FINAL REPORT ---", "color: #10b981; font-weight: bold;");
-  console.log("Status Kunci:", key ? "✅ YA (Tersedia)" : "❌ TIDAK (Hilang)");
-  if (key) console.log("Panjang Kunci:", key.length, "aksara");
-  console.log("%c---------------------------", "color: #10b981; font-weight: bold;");
-  
-  return key || "";
-};
-
-const API_KEY = getApiKey();
-
-const REPORT_INSTRUCTION = `Anda AI pakar laporan koku SK Menerong. Guna BM Baku Profesional.`;
-const CHAT_INSTRUCTION = `Anda Awang SKeMe, AI SK Menerong. Cakap Loghat Terengganu (Boh, Kite, Bereh).`;
+const CHAT_SYSTEM_INSTRUCTION = `
+Identiti: Anda adalah 'Awang SKeMe', pembantu digital SK Menerong yang ramah, kelakar, dan berjiwa rakyat Terengganu.
+Bahasa: Gunakan Bahasa Melayu dengan loghat Terengganu yang sopan (Contoh: Boh, Bereh, Gane, Dok mende, Kabo).
+Tugas: Membantu cikgu dengan soalan teknikal sistem, idea aktiviti koku, atau sekadar berbual kosong untuk hilangkan stress cikgu.
+Pantang Larang: Jangan terlalu skema/formal bila berbual dalam mod Chat.
+`;
 
 export class AwangService {
-  private genAI: GoogleGenerativeAI | null = null;
+  private getClient() {
+    // 1. Cuba ambil dari VITE standard (Localhost biasanya guna ni)
+    let apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
 
-  constructor() {
-    if (API_KEY && API_KEY.length > 10) {
-      try {
-        this.genAI = new GoogleGenerativeAI(API_KEY);
-      } catch (err) {
-        console.error("Gagal init AI:", err);
-      }
+    // 2. Fallback untuk Vercel / Production Build
+    // Vite akan ganti teks 'process.env.API_KEY' dengan nilai sebenar masa build.
+    // Kita guna try-catch sebab kalau run kat browser biasa tanpa build, 'process' tak wujud dan akan error.
+    if (!apiKey) {
+        try {
+            // @ts-ignore
+            apiKey = process.env.API_KEY;
+        } catch (e) {
+            // Abaikan error jika process is undefined
+        }
     }
+    
+    // Debugging untuk console browser (tak tunjuk full key untuk keselamatan)
+    if (!apiKey) {
+        console.warn("Awang AI: API Key is missing. Sila set 'VITE_GEMINI_API_KEY' dalam fail .env (Local) atau Environment Variables (Vercel).");
+        return null;
+    }
+    
+    return new GoogleGenAI({ apiKey });
   }
 
-  async *askEinsteinStream(prompt: string): AsyncGenerator<string, void, unknown> {
-    if (!this.genAI) {
-      yield "Alamak bohh! Kunci API tak lekat lagi kat Vercel. \n\nCuba check: \n1. Vercel Settings > Env Variables.\n2. Nama mesti 'VITE_GEMINI_API_KEY'.";
-      return;
-    }
-    try {
-      const model = this.genAI.getGenerativeModel({ 
-        model: MODEL_NAME, 
-        systemInstruction: CHAT_INSTRUCTION 
-      });
-      const result = await model.generateContentStream(prompt);
-      for await (const chunk of result.stream) {
-        const chunkText = chunk.text();
-        if (chunkText) yield chunkText;
-      }
-    } catch (e: any) { yield `\n[RALAT]: ${e.message}`; }
-  }
-
+  // --- MOD LAPORAN (FORMAL) ---
   async suggestTitle(unit: string, kaliKe: string): Promise<string> {
-    if (!this.genAI) return "Aktiviti Mingguan";
+    const ai = this.getClient();
+    if (!ai) return "Aktiviti Mingguan";
+    
     try {
-      const model = this.genAI.getGenerativeModel({ model: MODEL_NAME, systemInstruction: REPORT_INSTRUCTION });
-      const result = await model.generateContent(`Tajuk pendek koku unit ${unit} kali ke-${kaliKe}.`);
-      return result.response.text().replace(/"/g, '').trim();
-    } catch (e) { return "Aktiviti Mingguan"; }
+      const response = await ai.models.generateContent({
+        model: MODEL_NAME,
+        contents: `Beri satu tajuk aktiviti kokurikulum pendek, padat dan menarik bagi unit "${unit}" perjumpaan ke-${kaliKe}. Beri tajuk SAHAJA tanpa ulasan lain (Contoh: Latihan Kawad Kaki Asas).`,
+        config: { 
+          systemInstruction: REPORT_SYSTEM_INSTRUCTION,
+          temperature: 0.7 
+        }
+      });
+      return response.text?.replace(/["*]/g, '').trim() || "Aktiviti Mingguan";
+    } catch (e) {
+      console.error("Awang Error (Title):", e);
+      return "Aktiviti Mingguan";
+    }
   }
 
-  async *generateReportSegment(title: string, unit: string, type: string): AsyncGenerator<string, void, unknown> {
-    if (!this.genAI) { yield "API Error"; return; }
+  async *generateReportSegment(
+    title: string, 
+    unit: string, 
+    type: 'objektif' | 'aktiviti' | 'kekuatan' | 'kelemahan' | 'impak'
+  ): AsyncGenerator<string, void, unknown> {
+    const prompts = {
+      objektif: `Senaraikan 2 objektif ringkas (kurang 10 patah perkataan setiap satu) untuk aktiviti "${title}" bagi unit "${unit}". Guna format bullet point (•).`,
+      aktiviti: `Senaraikan 3 langkah pelaksanaan utama untuk "${title}" secara kronologi. Ringkas dan padat. Guna nombor (1., 2., 3.).`,
+      kekuatan: `Berikan 2 kekuatan utama pelaksanaan aktiviti ini dari sudut penglibatan murid. Ringkas. Guna format bullet point (•).`,
+      kelemahan: `Berikan 2 kekangan atau kelemahan ringkas semasa aktiviti (contoh: masa, cuaca, peralatan). Ringkas. Guna format bullet point (•).`,
+      impak: `Berikan satu cadangan penambahbaikan spesifik untuk masa hadapan. Satu ayat lengkap sahaja.`
+    };
+
+    const ai = this.getClient();
+    if (!ai) { 
+      yield "Ralat: API Key tidak ditemui. Sila buat fail .env dan letak VITE_GEMINI_API_KEY=xxx"; 
+      return; 
+    }
+
     try {
-      const model = this.genAI.getGenerativeModel({ model: MODEL_NAME, systemInstruction: REPORT_INSTRUCTION });
-      const result = await model.generateContentStream(`Berikan ${type} untuk aktiviti ${title} unit ${unit}.`);
-      for await (const chunk of result.stream) {
-        const chunkText = chunk.text();
-        if (chunkText) yield chunkText;
+      const responseStream = await ai.models.generateContentStream({
+        model: MODEL_NAME,
+        contents: prompts[type],
+        config: { 
+          systemInstruction: REPORT_SYSTEM_INSTRUCTION,
+          temperature: 0.5
+        }
+      });
+
+      for await (const chunk of responseStream) {
+        if (chunk.text) yield chunk.text;
       }
-    } catch (e: any) { yield `\n[RALAT]: ${e.message}`; }
+    } catch (e: any) {
+      console.error("Awang Error (Segment):", e);
+      yield "Maaf, Awang terputus hubungan. Sila cuba lagi.";
+    }
   }
 
-  smartDraft(input: string): string { return `[DRAF]: ${input} selesai.`; }
+  // --- MOD CHAT (SANTAI) ---
+  async *askEinsteinStream(prompt: string): AsyncGenerator<string, void, unknown> {
+    const ai = this.getClient();
+    if (!ai) {
+        yield "Alamak boh! Kunci API tak jumpa. Kalau kat VSCode, buat fail bernama '.env' kat root, isi: VITE_GEMINI_API_KEY=kunci_mu_sini";
+        return;
+    }
+
+    try {
+        const responseStream = await ai.models.generateContentStream({
+            model: MODEL_NAME,
+            contents: prompt,
+            config: {
+                systemInstruction: CHAT_SYSTEM_INSTRUCTION,
+                temperature: 0.8 // Kreatif sikit untuk berbual
+            }
+        });
+
+        for await (const chunk of responseStream) {
+            if (chunk.text) yield chunk.text;
+        }
+    } catch (e: any) {
+        console.error("Awang Chat Error:", e);
+        yield "Maaf boh, jem sikit kepala Awang hari ni. Cuba tanya soalan lain?";
+    }
+  }
 }
 
 export const awangAI = new AwangService();
