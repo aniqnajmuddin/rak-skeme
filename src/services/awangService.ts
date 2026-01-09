@@ -1,28 +1,32 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 /**
- * AWANG SKEME SERVICE - VERSION 2.7 (ULTIMATE REPAIR)
- * Model: Gemini 3 Flash Preview
+ * AWANG SKEME PRO - v22.2 (FINAL UNIFIED)
+ * Gabungan cara Google Studio + Vite + Vercel Fix
  */
 
-const MODEL_NAME = "gemini-3-flash-preview"; 
+const MODEL_NAME = "gemini-1.5-flash"; // Gunakan nama model yang stabil
 
 const getApiKey = (): string => {
-  const meta = import.meta as any;
-  
-  // 1. Cuba cara biasa Vite
-  let key = meta.env?.VITE_GEMINI_API_KEY;
-  
-  // 2. Kalau tak jumpa, ambil dari "Suntikan Rahsia" vite.config
+  // 1. Kita cuba ambil cara Google Studio (yang kita jambatankan dalam vite.config)
+  // @ts-ignore
+  let key = (typeof process !== 'undefined' && process.env?.API_KEY) ? process.env.API_KEY : null;
+
+  // 2. Kalau tak jumpa, kita cuba cara standard Vite (.env)
+  if (!key) {
+    const meta = import.meta as any;
+    key = meta.env?.VITE_GEMINI_API_KEY;
+  }
+
+  // 3. Kalau tak jumpa jugak, kita cuba suntikan rahsia
   if (!key) {
     key = (window as any).__GEMINI_KEY__;
   }
-  
-  // --- CCTV DEBUG ---
-  console.log("%c--- 🕵️‍♂️ AWANG FINAL REPORT ---", "color: #f59e0b; font-weight: bold;");
-  console.log("Kunci Dikesan?", key ? "✅ YA" : "❌ TIDAK");
+
+  console.log("%c--- 🕵️‍♂️ AWANG FINAL REPORT ---", "color: #10b981; font-weight: bold;");
+  console.log("Status Kunci:", key ? "✅ YA (Tersedia)" : "❌ TIDAK (Hilang)");
   if (key) console.log("Panjang Kunci:", key.length, "aksara");
-  console.log("%c---------------------------", "color: #f59e0b; font-weight: bold;");
+  console.log("%c---------------------------", "color: #10b981; font-weight: bold;");
   
   return key || "";
 };
@@ -47,11 +51,14 @@ export class AwangService {
 
   async *askEinsteinStream(prompt: string): AsyncGenerator<string, void, unknown> {
     if (!this.genAI) {
-      yield "Alamak bohh! Kunci API still tak lekat. \n\nCuba: \n1. Rename folder (buang kurungan).\n2. Cek .env jangan ada space.";
+      yield "Alamak bohh! Kunci API tak lekat lagi kat Vercel. \n\nCuba check: \n1. Vercel Settings > Env Variables.\n2. Nama mesti 'VITE_GEMINI_API_KEY'.";
       return;
     }
     try {
-      const model = this.genAI.getGenerativeModel({ model: MODEL_NAME, systemInstruction: CHAT_INSTRUCTION });
+      const model = this.genAI.getGenerativeModel({ 
+        model: MODEL_NAME, 
+        systemInstruction: CHAT_INSTRUCTION 
+      });
       const result = await model.generateContentStream(prompt);
       for await (const chunk of result.stream) {
         const chunkText = chunk.text();
